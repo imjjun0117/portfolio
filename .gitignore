@@ -1,0 +1,41 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# Build & Target
+target/
+dist/
+build/
+out/
+bin/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Backend
+.mvn/
+mvnw
+mvnw.cmd
+.gradle/
+
+# Secrets & Config
+.env
+.env.local
+.env.*.local
+application-secrets.properties
+
+# Docker
+.docker/
+volumes/
+postgres_data/
