@@ -35,19 +35,28 @@ onMounted(fetchProjects)
 <template>
   <section class="projects">
     <div class="container">
-      <h2 class="section-title">Projects</h2>
+      <div class="section-header">
+        <h2 class="section-title">Case Studies</h2>
+        <p class="section-subtitle">실제 비즈니스 문제를 해결한 프로젝트 사례입니다.</p>
+      </div>
       
       <div v-if="isLoading" class="loading">
         데이터를 불러오는 중입니다...
       </div>
       
-      <div v-else class="project-grid">
-        <ProjectCard 
-          v-for="project in projects" 
-          :key="project.id" 
-          :project="project" 
-          @click="openModal(project)"
-        />
+      <div v-else class="slider-wrapper">
+        <div class="project-slider" ref="slider">
+          <ProjectCard 
+            v-for="project in projects" 
+            :key="project.id" 
+            :project="project" 
+            class="slider-item"
+            @click="openModal(project)"
+          />
+        </div>
+        <div class="slider-hint">
+          <span>좌우로 스크롤하여 더 많은 프로젝트를 확인하세요 &rarr;</span>
+        </div>
       </div>
 
       <ProjectModal 
@@ -60,17 +69,60 @@ onMounted(fetchProjects)
 </template>
 
 <style scoped>
-.section-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin-bottom: 3rem;
-  text-align: center;
+.projects {
+  padding: 100px 0;
+  background-color: var(--bg-primary);
 }
 
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2.5rem;
+.section-header {
+  margin-bottom: 4rem;
+}
+
+.section-title {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--accent-color), #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.section-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.slider-wrapper {
+  position: relative;
+  margin: 0 -20px;
+}
+
+.project-slider {
+  display: flex;
+  gap: 2rem;
+  overflow-x: auto;
+  padding: 20px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none; /* Firefox */
+}
+
+.project-slider::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.slider-item {
+  flex: 0 0 calc(50% - 1rem);
+  min-width: 400px;
+  scroll-snap-align: start;
+}
+
+.slider-hint {
+  margin-top: 2rem;
+  text-align: right;
+  padding-right: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  opacity: 0.7;
 }
 
 .loading {
@@ -80,9 +132,20 @@ onMounted(fetchProjects)
   font-size: 1.2rem;
 }
 
-@media (max-width: 600px) {
-  .project-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1024px) {
+  .slider-item {
+    flex: 0 0 calc(80% - 1rem);
+    min-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 2.2rem;
+  }
+  .slider-item {
+    flex: 0 0 calc(100% - 1rem);
+    min-width: 280px;
   }
 }
 </style>

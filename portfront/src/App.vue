@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import Hero from './components/Hero.vue'
 import Skills from './components/Skills.vue'
 import Projects from './components/Projects.vue'
 import Contact from './components/Contact.vue'
@@ -24,9 +23,8 @@ onMounted(() => {
       <h1 class="logo">PORTFOLIO</h1>
       <nav>
         <ul class="nav-links">
-          <li><a href="#hero">Home</a></li>
-          <li><a href="#skills">Skills</a></li>
           <li><a href="#projects">Projects</a></li>
+          <li><a href="#skills">Skills</a></li>
           <li><a href="#contact">Contact</a></li>
           <li>
             <button @click="toggleTheme" class="theme-toggle">
@@ -40,9 +38,8 @@ onMounted(() => {
   </header>
 
   <main>
-    <Hero id="hero" />
-    <Skills id="skills" />
     <Projects id="projects" />
+    <Skills id="skills" />
     <Contact id="contact" />
   </main>
 

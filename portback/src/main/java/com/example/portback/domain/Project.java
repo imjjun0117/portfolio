@@ -36,4 +36,13 @@ public class Project {
 
     private String github;
     private String thumbnail;
+    private String period;
+
+    @Column(columnDefinition = "TEXT")
+    private String longDescription;
+
+    @ElementCollection
+    @CollectionTable(name = "project_images", joinColumns = @JoinColumn(name = "project_id"))
+    @Column(name = "image_url")
+    private List<String> images;
 }

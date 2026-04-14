@@ -1,8 +1,28 @@
 <script setup>
+import { ref } from 'vue'
+
 defineProps({
   project: Object
 })
 defineEmits(['close'])
+
+const currentImage = ref(0)
+const slider = ref(null)
+
+const handleScroll = (e) => {
+  const width = e.target.offsetWidth
+  currentImage.value = Math.round(e.target.scrollLeft / width)
+}
+
+const scrollToImage = (index) => {
+  if (slider.value) {
+    const width = slider.value.offsetWidth
+    slider.value.scrollTo({
+      left: width * index,
+      behavior: 'smooth'
+    })
+  }
+}
 </script>
 
 <template>
@@ -12,13 +32,39 @@ defineEmits(['close'])
       
       <div class="modal-body">
         <div class="modal-header">
-          <h2 class="title">{{ project.title }}</h2>
+          <div class="header-main">
+            <h2 class="title">{{ project.title }}</h2>
+            <div class="project-period">{{ project.period }}</div>
+          </div>
           <p class="description">{{ project.description }}</p>
+        </div>
+
+        <!-- Image Slider Section -->
+        <div v-if="project.images && project.images.length" class="image-slider-container">
+          <div class="image-slider" ref="slider" @scroll="handleScroll">
+            <div v-for="(img, index) in project.images" :key="index" class="slide">
+              <img :src="img" :alt="`${project.title} screenshot ${index + 1}`" />
+            </div>
+          </div>
+          <div class="slider-dots">
+            <span 
+              v-for="(_, index) in project.images" 
+              :key="index" 
+              class="dot" 
+              :class="{ active: currentImage === index }"
+              @click="scrollToImage(index)"
+            ></span>
+          </div>
         </div>
 
         <div class="info-grid">
           <div class="info-section">
-            <h4>💡 프로젝트 개요</h4>
+            <h4>📄 상세 내용</h4>
+            <p class="long-description">{{ project.longDescription }}</p>
+          </div>
+
+          <div class="info-section">
+            <h4>💡 기술 스택</h4>
             <div class="skills-list">
               <span v-for="skill in project.skills" :key="skill" class="skill-tag">
                 {{ skill }}
@@ -50,7 +96,7 @@ defineEmits(['close'])
         </div>
 
         <div class="modal-footer">
-          <a :href="project.github" target="_blank" class="github-link">
+          <a v-if="project.github" :href="project.github" target="_blank" class="github-link">
             GitHub에서 코드 보기 &rarr;
           </a>
         </div>
@@ -116,15 +162,96 @@ defineEmits(['close'])
   padding-bottom: 2rem;
 }
 
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 .title {
   font-size: 2.5rem;
   font-weight: 800;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+}
+
+.project-period {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  background-color: rgba(59, 130, 246, 0.1);
+  padding: 0.4rem 1rem;
+  border-radius: 2rem;
+  margin-bottom: 0.3rem;
 }
 
 .description {
   font-size: 1.1rem;
   color: var(--text-secondary);
+}
+
+.long-description {
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  white-space: pre-wrap;
+}
+
+.image-slider-container {
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+.image-slider {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 1.5rem;
+  aspect-ratio: 16 / 9;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.image-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  height: 100%;
+}
+
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slider-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.dot.active {
+  background-color: var(--accent-color);
+  transform: scale(1.2);
+  width: 20px;
+  border-radius: 10px;
 }
 
 .info-grid {
