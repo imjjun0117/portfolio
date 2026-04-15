@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:latest
+    image: postgres:17
     container_name: portfolio-db
     environment:
       POSTGRES_DB: portfolio
@@ -14,20 +14,35 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - portfolio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d portfolio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: ./portback
     container_name: portfolio-app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/portfolio
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin1234
+      JWT_SECRET: portfolio-admin-secret-key-2024-must-be-long-enough
     ports:
       - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
     networks:
       - portfolio-network
+    restart: on-failure
 
   frontend:
     build: ./portfront
@@ -45,3 +60,4 @@ networks:
 
 volumes:
   postgres_data:
+  uploads_data:
