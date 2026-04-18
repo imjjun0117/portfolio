@@ -30,8 +30,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/admin/") && !path.equals("/api/admin/login")) {
             requiresAuth = true;
         }
-        // /api/projects 쓰기 작업 (POST, PUT, DELETE) 인증 필요
-        else if (path.startsWith("/api/projects") &&
+        // /api/projects, /api/experiences, /api/skills, /api/config 쓰기 작업 인증 필요
+        else if ((path.startsWith("/api/projects") ||
+                  path.startsWith("/api/experiences") ||
+                  path.startsWith("/api/skills") ||
+                  path.startsWith("/api/config")) &&
                 !HttpMethod.GET.name().equals(method) &&
                 !HttpMethod.OPTIONS.name().equals(method)) {
             requiresAuth = true;

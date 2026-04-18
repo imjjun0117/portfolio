@@ -1,25 +1,36 @@
 package com.example.portback.config;
 
-import com.example.portback.domain.ProblemSolving;
-import com.example.portback.domain.Project;
-import com.example.portback.repository.ProjectRepository;
+import com.example.portback.domain.*;
+import com.example.portback.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final ProjectRepository projectRepository;
+    private final ExperienceRepository experienceRepository;
+    private final SkillGroupRepository skillGroupRepository;
+    private final SiteConfigRepository siteConfigRepository;
 
     @Override
     public void run(String... args) throws Exception {
+        seedProjects();
+        seedExperiences();
+        seedSkillGroups();
+        seedSiteConfig();
+    }
+
+    private void seedProjects() {
         if (projectRepository.count() > 0) return;
 
-        // Project 1: Smart Factory Control System
         Project project1 = Project.builder()
                 .title("스마트 팩토리 통합 관제 시스템")
                 .description("IoT 센서 데이터를 실시간으로 수집하여 공정 효율을 분석하고 가동 중단을 예측하는 대시보드 시스템입니다.")
@@ -41,7 +52,6 @@ public class DataInitializer implements CommandLineRunner {
                         .build())
                 .build();
 
-        // Project 2: Enterprise HR Solution
         Project project2 = Project.builder()
                 .title("차세대 인사/급여 자동화 플랫폼")
                 .description("복잡한 인사 관리 및 급여 계산 로직을 자동화하고 연말정산 프로세스를 지원하는 기업용 SaaS입니다.")
@@ -63,7 +73,6 @@ public class DataInitializer implements CommandLineRunner {
                         .build())
                 .build();
 
-        // Project 3: Ecommerce AI Dashboard
         Project project3 = Project.builder()
                 .title("AI 기반 이커머스 매출 분석 대시보드")
                 .description("판매 데이터를 기반으로 미래 매출을 예측하고 카테고리별 추천 상품을 제안하는 분석 솔루션입니다.")
@@ -86,5 +95,95 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         projectRepository.saveAll(Arrays.asList(project1, project2, project3));
+    }
+
+    private void seedExperiences() {
+        if (experienceRepository.count() > 0) return;
+
+        Experience exp1 = Experience.builder()
+                .company("(주)디지털서커스")
+                .period("2024.05 ~ 현재")
+                .duration("약 2년")
+                .role("개발팀 대리")
+                .type("SI 개발")
+                .description("Java/Spring Boot 기반 공공 및 기업용 SI 시스템 개발. 요구사항 분석부터 설계, 개발, 납품까지 전 과정 참여.")
+                .tags(Arrays.asList("Java", "Spring Boot", "Oracle", "MyBatis"))
+                .current(true)
+                .displayOrder(1)
+                .build();
+
+        Experience exp2 = Experience.builder()
+                .company("주식회사 큐브에이")
+                .period("2022.08 ~ 2023.09")
+                .duration("1년 2개월")
+                .role("개발팀 사원")
+                .type("웹 개발")
+                .description("Spring Framework, MyBatis 기반 웹 서비스 신규 개발 및 리뉴얼. Java Model1, JDBC 기반 레거시 시스템 운영 유지보수.")
+                .tags(Arrays.asList("Spring Framework", "MyBatis", "Java", "JDBC"))
+                .current(false)
+                .displayOrder(2)
+                .build();
+
+        experienceRepository.saveAll(Arrays.asList(exp1, exp2));
+    }
+
+    private void seedSkillGroups() {
+        if (skillGroupRepository.count() > 0) return;
+
+        SkillGroup backend = SkillGroup.builder()
+                .name("Backend")
+                .icon("⚙️")
+                .color("#3b82f6")
+                .skills(Arrays.asList("Java", "Spring Boot", "Spring Framework", "JPA / MyBatis", "REST API"))
+                .displayOrder(1)
+                .build();
+
+        SkillGroup frontend = SkillGroup.builder()
+                .name("Frontend")
+                .icon("🎨")
+                .color("#8b5cf6")
+                .skills(Arrays.asList("Vue.js", "JavaScript", "HTML5 / CSS3", "Vite", "Axios"))
+                .displayOrder(2)
+                .build();
+
+        SkillGroup database = SkillGroup.builder()
+                .name("Database")
+                .icon("🗄️")
+                .color("#10b981")
+                .skills(Arrays.asList("PostgreSQL", "Oracle", "MySQL", "JDBC", "Redis"))
+                .displayOrder(3)
+                .build();
+
+        SkillGroup devops = SkillGroup.builder()
+                .name("DevOps & Tools")
+                .icon("🛠️")
+                .color("#f59e0b")
+                .skills(Arrays.asList("Docker", "Git / GitHub", "Maven", "Linux", "AWS"))
+                .displayOrder(4)
+                .build();
+
+        skillGroupRepository.saveAll(Arrays.asList(backend, frontend, database, devops));
+    }
+
+    private void seedSiteConfig() {
+        if (siteConfigRepository.count() > 0) return;
+
+        List<SiteConfig> configs = Arrays.asList(
+                new SiteConfig("hero.badge", "풀스택 개발자"),
+                new SiteConfig("hero.name", "황성준"),
+                new SiteConfig("hero.description", "웹 에이전시부터 SI까지, 다양한 도메인의 실무 프로젝트를 경험한\n3년차 풀스택 개발자입니다."),
+                new SiteConfig("hero.stat1.value", "3+"),
+                new SiteConfig("hero.stat1.label", "년 경력"),
+                new SiteConfig("hero.stat2.value", "2"),
+                new SiteConfig("hero.stat2.label", "개 기업"),
+                new SiteConfig("hero.stat3.value", "Full"),
+                new SiteConfig("hero.stat3.label", "Stack"),
+                new SiteConfig("hero.githubUrl", "https://github.com/imjjun0117"),
+                new SiteConfig("hero.email", "hsungjun0117@gmail.com"),
+                new SiteConfig("contact.email", "hsungjun0117@gmail.com"),
+                new SiteConfig("contact.github", "https://github.com/imjjun0117")
+        );
+
+        siteConfigRepository.saveAll(configs);
     }
 }

@@ -1,208 +1,19 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
 
-// ── 상태 ──────────────────────────────────────────
-const projects = ref([])
-const loading = ref(true)
-const showModal = ref(false)
-const editingId = ref(null)
-const deleteConfirmId = ref(null)
-const saveLoading = ref(false)
+// ── 공통 ──────────────────────────────────────────
+const activeTab = ref('projects')
 const toast = ref({ show: false, message: '', type: 'success' })
-
-// 파일 업로드용 input refs
-const thumbnailInput = ref(null)
-const imageInput = ref(null)
-const thumbnailUploading = ref(false)
-const imageUploading = ref(false)
-
-const emptyForm = () => ({
-  title: '',
-  description: '',
-  longDescription: '',
-  period: '',
-  github: '',
-  thumbnail: '',
-  skills: '',
-  roles: '',
-  images: [],      // 배열로 관리
-  problem: '',
-  solution: '',
-  result: ''
-})
-
-const form = ref(emptyForm())
-const newImageUrl = ref('')
-const modalTitle = computed(() => editingId.value ? '프로젝트 수정' : '프로젝트 추가')
-
-// ── API 헬퍼 ──────────────────────────────────────
 const token = () => localStorage.getItem('admin_token')
 const authHeaders = () => ({ headers: { Authorization: `Bearer ${token()}` } })
 
-// ── 프로젝트 목록 ──────────────────────────────────
-const fetchProjects = async () => {
-  loading.value = true
-  try {
-    const res = await axios.get('/api/projects')
-    projects.value = res.data
-  } catch {
-    showToast('데이터를 불러오지 못했습니다.', 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-// ── 모달 열기 ──────────────────────────────────────
-const openCreate = () => {
-  editingId.value = null
-  form.value = emptyForm()
-  newImageUrl.value = ''
-  showModal.value = true
-}
-
-const openEdit = (project) => {
-  editingId.value = project.id
-  form.value = {
-    title: project.title || '',
-    description: project.description || '',
-    longDescription: project.longDescription || '',
-    period: project.period || '',
-    github: project.github || '',
-    thumbnail: project.thumbnail || '',
-    skills: (project.skills || []).join(', '),
-    roles: (project.roles || []).join('\n'),
-    images: [...(project.images || [])],
-    problem: project.problemSolving?.problem || '',
-    solution: project.problemSolving?.solution || '',
-    result: project.problemSolving?.result || ''
-  }
-  newImageUrl.value = ''
-  showModal.value = true
-}
-
-const closeModal = () => {
-  showModal.value = false
-  editingId.value = null
-}
-
-// ── 파일 업로드 ────────────────────────────────────
-const uploadFile = async (file) => {
-  const formData = new FormData()
-  formData.append('file', file)
-  const res = await axios.post('/api/admin/upload', formData, {
-    headers: {
-      Authorization: `Bearer ${token()}`,
-      'Content-Type': 'multipart/form-data'
-    }
-  })
-  return res.data.url
-}
-
-const onThumbnailFile = async (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-  thumbnailUploading.value = true
-  try {
-    form.value.thumbnail = await uploadFile(file)
-    showToast('썸네일이 업로드되었습니다.')
-  } catch {
-    showToast('썸네일 업로드에 실패했습니다.', 'error')
-  } finally {
-    thumbnailUploading.value = false
-    e.target.value = ''
-  }
-}
-
-const onImageFile = async (e) => {
-  const files = Array.from(e.target.files)
-  if (!files.length) return
-  imageUploading.value = true
-  try {
-    for (const file of files) {
-      const url = await uploadFile(file)
-      form.value.images.push(url)
-    }
-    showToast(`이미지 ${files.length}개가 업로드되었습니다.`)
-  } catch {
-    showToast('이미지 업로드에 실패했습니다.', 'error')
-  } finally {
-    imageUploading.value = false
-    e.target.value = ''
-  }
-}
-
-// URL 직접 추가
-const addImageUrl = () => {
-  const url = newImageUrl.value.trim()
-  if (!url) return
-  form.value.images.push(url)
-  newImageUrl.value = ''
-}
-
-const removeImage = (index) => {
-  form.value.images.splice(index, 1)
-}
-
-// ── 저장 ──────────────────────────────────────────
-const saveProject = async () => {
-  saveLoading.value = true
-  try {
-    const payload = {
-      title: form.value.title,
-      description: form.value.description,
-      longDescription: form.value.longDescription,
-      period: form.value.period,
-      github: form.value.github,
-      thumbnail: form.value.thumbnail,
-      skills: form.value.skills.split(',').map(s => s.trim()).filter(Boolean),
-      roles: form.value.roles.split('\n').map(s => s.trim()).filter(Boolean),
-      images: form.value.images,
-      problem: form.value.problem,
-      solution: form.value.solution,
-      result: form.value.result
-    }
-
-    if (editingId.value) {
-      await axios.put(`/api/projects/${editingId.value}`, payload, authHeaders())
-      showToast('프로젝트가 수정되었습니다.')
-    } else {
-      await axios.post('/api/projects', payload, authHeaders())
-      showToast('프로젝트가 추가되었습니다.')
-    }
-
-    closeModal()
-    await fetchProjects()
-  } catch (e) {
-    if (e.response?.status === 401) handleUnauthorized()
-    else showToast('저장에 실패했습니다.', 'error')
-  } finally {
-    saveLoading.value = false
-  }
-}
-
-// ── 삭제 ──────────────────────────────────────────
-const confirmDelete = (id) => { deleteConfirmId.value = id }
-
-const deleteProject = async () => {
-  try {
-    await axios.delete(`/api/projects/${deleteConfirmId.value}`, authHeaders())
-    deleteConfirmId.value = null
-    showToast('프로젝트가 삭제되었습니다.')
-    await fetchProjects()
-  } catch (e) {
-    if (e.response?.status === 401) handleUnauthorized()
-    else showToast('삭제에 실패했습니다.', 'error')
-  }
-}
-
-// ── 로그아웃 ──────────────────────────────────────
-const logout = () => {
-  localStorage.removeItem('admin_token')
-  router.push('/admin')
+const showToast = (message, type = 'success') => {
+  toast.value = { show: true, message, type }
+  setTimeout(() => { toast.value.show = false }, 3000)
 }
 
 const handleUnauthorized = () => {
@@ -210,10 +21,385 @@ const handleUnauthorized = () => {
   router.push('/admin')
 }
 
-// ── 토스트 ────────────────────────────────────────
-const showToast = (message, type = 'success') => {
-  toast.value = { show: true, message, type }
-  setTimeout(() => { toast.value.show = false }, 3000)
+const logout = () => {
+  localStorage.removeItem('admin_token')
+  router.push('/admin')
+}
+
+// ── 파일 업로드 ──────────────────────────────────
+const uploadFile = async (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post('/api/admin/upload', formData, {
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'multipart/form-data' }
+  })
+  return res.data.url
+}
+
+// ════════════════════════════════════════════════
+// 프로젝트 탭
+// ════════════════════════════════════════════════
+const projects = ref([])
+const projectsLoading = ref(true)
+const showProjectModal = ref(false)
+const editingProjectId = ref(null)
+const saveProjectLoading = ref(false)
+const deleteProjectConfirmId = ref(null)
+const thumbnailInput = ref(null)
+const imageInput = ref(null)
+const thumbnailUploading = ref(false)
+const imageUploading = ref(false)
+const newImageUrl = ref('')
+
+const emptyProjectForm = () => ({
+  title: '', description: '', longDescription: '', period: '', github: '',
+  thumbnail: '', skills: '', roles: '', images: [], problem: '', solution: '', result: ''
+})
+const projectForm = ref(emptyProjectForm())
+const projectModalTitle = computed(() => editingProjectId.value ? '프로젝트 수정' : '프로젝트 추가')
+
+const fetchProjects = async () => {
+  projectsLoading.value = true
+  try {
+    const res = await axios.get('/api/projects')
+    projects.value = res.data
+  } catch { showToast('데이터를 불러오지 못했습니다.', 'error') }
+  finally { projectsLoading.value = false }
+}
+
+const openCreateProject = () => {
+  editingProjectId.value = null
+  projectForm.value = emptyProjectForm()
+  newImageUrl.value = ''
+  showProjectModal.value = true
+}
+
+const openEditProject = (p) => {
+  editingProjectId.value = p.id
+  projectForm.value = {
+    title: p.title || '', description: p.description || '', longDescription: p.longDescription || '',
+    period: p.period || '', github: p.github || '', thumbnail: p.thumbnail || '',
+    skills: (p.skills || []).join(', '), roles: (p.roles || []).join('\n'),
+    images: [...(p.images || [])],
+    problem: p.problemSolving?.problem || '', solution: p.problemSolving?.solution || '',
+    result: p.problemSolving?.result || ''
+  }
+  newImageUrl.value = ''
+  showProjectModal.value = true
+}
+
+const onThumbnailFile = async (e) => {
+  const file = e.target.files[0]; if (!file) return
+  thumbnailUploading.value = true
+  try { projectForm.value.thumbnail = await uploadFile(file); showToast('썸네일이 업로드되었습니다.') }
+  catch { showToast('썸네일 업로드에 실패했습니다.', 'error') }
+  finally { thumbnailUploading.value = false; e.target.value = '' }
+}
+
+const onImageFile = async (e) => {
+  const files = Array.from(e.target.files); if (!files.length) return
+  imageUploading.value = true
+  try {
+    for (const file of files) projectForm.value.images.push(await uploadFile(file))
+    showToast(`이미지 ${files.length}개가 업로드되었습니다.`)
+  } catch { showToast('이미지 업로드에 실패했습니다.', 'error') }
+  finally { imageUploading.value = false; e.target.value = '' }
+}
+
+const addImageUrl = () => {
+  const url = newImageUrl.value.trim(); if (!url) return
+  projectForm.value.images.push(url); newImageUrl.value = ''
+}
+
+const removeImage = (i) => projectForm.value.images.splice(i, 1)
+
+const saveProject = async () => {
+  saveProjectLoading.value = true
+  try {
+    const payload = {
+      title: projectForm.value.title, description: projectForm.value.description,
+      longDescription: projectForm.value.longDescription, period: projectForm.value.period,
+      github: projectForm.value.github, thumbnail: projectForm.value.thumbnail,
+      skills: projectForm.value.skills.split(',').map(s => s.trim()).filter(Boolean),
+      roles: projectForm.value.roles.split('\n').map(s => s.trim()).filter(Boolean),
+      images: projectForm.value.images,
+      problem: projectForm.value.problem, solution: projectForm.value.solution, result: projectForm.value.result
+    }
+    if (editingProjectId.value) {
+      await axios.put(`/api/projects/${editingProjectId.value}`, payload, authHeaders())
+      showToast('프로젝트가 수정되었습니다.')
+    } else {
+      await axios.post('/api/projects', payload, authHeaders())
+      showToast('프로젝트가 추가되었습니다.')
+    }
+    showProjectModal.value = false; editingProjectId.value = null
+    await fetchProjects()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('저장에 실패했습니다.', 'error')
+  } finally { saveProjectLoading.value = false }
+}
+
+const deleteProject = async () => {
+  try {
+    await axios.delete(`/api/projects/${deleteProjectConfirmId.value}`, authHeaders())
+    deleteProjectConfirmId.value = null
+    showToast('프로젝트가 삭제되었습니다.'); await fetchProjects()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('삭제에 실패했습니다.', 'error')
+  }
+}
+
+// ════════════════════════════════════════════════
+// 날짜 헬퍼
+// ════════════════════════════════════════════════
+// "YYYY-MM" → "YYYY.MM"
+const formatMonth = (yyyymm) => {
+  if (!yyyymm) return ''
+  const [y, m] = yyyymm.split('-')
+  return `${y}.${m}`
+}
+
+// "YYYY.MM" → "YYYY-MM"  (input[type=month] value format)
+const parseToInputMonth = (dot) => {
+  if (!dot || dot === '현재') return ''
+  return dot.replace('.', '-')   // "2024.05" → "2024-05"
+}
+
+// startYYYYMM, endYYYYMM: "YYYY-MM" strings; current: boolean
+const calcDurationStr = (startYYYYMM, endYYYYMM, current) => {
+  if (!startYYYYMM) return ''
+  const [sy, sm] = startYYYYMM.split('-').map(Number)
+  let ey, em
+  if (current || !endYYYYMM) {
+    const now = new Date()
+    ey = now.getFullYear(); em = now.getMonth() + 1
+  } else {
+    ;[ey, em] = endYYYYMM.split('-').map(Number)
+  }
+  const total = (ey - sy) * 12 + (em - sm) + 1   // inclusive months
+  if (total <= 0) return current ? '재직 중' : '1개월 미만'
+  const years = Math.floor(total / 12)
+  const rem = total % 12
+  let str = ''
+  if (years === 0) str = `${rem}개월`
+  else if (rem === 0) str = `${years}년`
+  else str = `${years}년 ${rem}개월`
+  return current ? `약 ${str}` : str
+}
+
+// ════════════════════════════════════════════════
+// 경력 탭
+// ════════════════════════════════════════════════
+const experiences = ref([])
+const expLoading = ref(true)
+const showExpModal = ref(false)
+const editingExpId = ref(null)
+const saveExpLoading = ref(false)
+const deleteExpConfirmId = ref(null)
+
+const emptyExpForm = () => ({
+  company: '', startDate: '', endDate: '', role: '', type: '',
+  description: '', tags: '', current: false, displayOrder: 0
+})
+const expForm = ref(emptyExpForm())
+const expModalTitle = computed(() => editingExpId.value ? '경력 수정' : '경력 추가')
+
+// 날짜가 바뀔 때마다 재직 기간 자동 계산 (표시용)
+const expAutoEndDate = ref('')   // endDate 표시 (현재 체크시 오늘 기준)
+const expDuration = computed(() =>
+  calcDurationStr(expForm.value.startDate, expForm.value.endDate, expForm.value.current)
+)
+// 현재 체크 시 endDate 비우기
+watch(() => expForm.value.current, (val) => {
+  if (val) expForm.value.endDate = ''
+})
+
+const fetchExperiences = async () => {
+  expLoading.value = true
+  try { const res = await axios.get('/api/experiences'); experiences.value = res.data }
+  catch { showToast('경력 데이터를 불러오지 못했습니다.', 'error') }
+  finally { expLoading.value = false }
+}
+
+const openCreateExp = () => {
+  editingExpId.value = null; expForm.value = emptyExpForm(); showExpModal.value = true
+}
+
+const openEditExp = (exp) => {
+  editingExpId.value = exp.id
+  // period like "2024.05 ~ 현재" or "2022.08 ~ 2023.09"
+  const parts = (exp.period || '').split(' ~ ')
+  expForm.value = {
+    company: exp.company || '',
+    startDate: parseToInputMonth(parts[0] || ''),
+    endDate: parseToInputMonth(parts[1] || ''),
+    role: exp.role || '', type: exp.type || '', description: exp.description || '',
+    tags: (exp.tags || []).join(', '), current: exp.current || false, displayOrder: exp.displayOrder || 0
+  }
+  showExpModal.value = true
+}
+
+const saveExp = async () => {
+  saveExpLoading.value = true
+  try {
+    const { startDate, endDate, current } = expForm.value
+    const period = startDate
+      ? `${formatMonth(startDate)} ~ ${current ? '현재' : formatMonth(endDate)}`
+      : ''
+    const duration = calcDurationStr(startDate, endDate, current)
+    const payload = {
+      company: expForm.value.company, period, duration,
+      role: expForm.value.role, type: expForm.value.type, description: expForm.value.description,
+      tags: expForm.value.tags.split(',').map(s => s.trim()).filter(Boolean),
+      current: expForm.value.current, displayOrder: Number(expForm.value.displayOrder)
+    }
+    if (editingExpId.value) {
+      await axios.put(`/api/experiences/${editingExpId.value}`, payload, authHeaders())
+      showToast('경력이 수정되었습니다.')
+    } else {
+      await axios.post('/api/experiences', payload, authHeaders())
+      showToast('경력이 추가되었습니다.')
+    }
+    showExpModal.value = false; editingExpId.value = null; await fetchExperiences()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('저장에 실패했습니다.', 'error')
+  } finally { saveExpLoading.value = false }
+}
+
+const deleteExp = async () => {
+  try {
+    await axios.delete(`/api/experiences/${deleteExpConfirmId.value}`, authHeaders())
+    deleteExpConfirmId.value = null; showToast('경력이 삭제되었습니다.'); await fetchExperiences()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('삭제에 실패했습니다.', 'error')
+  }
+}
+
+// ════════════════════════════════════════════════
+// 기술 스택 탭
+// ════════════════════════════════════════════════
+const skillGroups = ref([])
+const skillsLoading = ref(true)
+const showSkillModal = ref(false)
+const editingSkillId = ref(null)
+const saveSkillLoading = ref(false)
+const deleteSkillConfirmId = ref(null)
+
+const emptySkillForm = () => ({
+  name: '', icon: '', color: '#3b82f6', skills: '', displayOrder: 0
+})
+const skillForm = ref(emptySkillForm())
+const skillModalTitle = computed(() => editingSkillId.value ? '기술 그룹 수정' : '기술 그룹 추가')
+
+const fetchSkillGroups = async () => {
+  skillsLoading.value = true
+  try { const res = await axios.get('/api/skills'); skillGroups.value = res.data }
+  catch { showToast('기술 데이터를 불러오지 못했습니다.', 'error') }
+  finally { skillsLoading.value = false }
+}
+
+const openCreateSkill = () => {
+  editingSkillId.value = null; skillForm.value = emptySkillForm(); showSkillModal.value = true
+}
+
+const openEditSkill = (sg) => {
+  editingSkillId.value = sg.id
+  skillForm.value = {
+    name: sg.name || '', icon: sg.icon || '', color: sg.color || '#3b82f6',
+    skills: (sg.skills || []).join(', '), displayOrder: sg.displayOrder || 0
+  }
+  showSkillModal.value = true
+}
+
+const saveSkill = async () => {
+  saveSkillLoading.value = true
+  try {
+    const payload = {
+      name: skillForm.value.name, icon: skillForm.value.icon, color: skillForm.value.color,
+      skills: skillForm.value.skills.split(',').map(s => s.trim()).filter(Boolean),
+      displayOrder: Number(skillForm.value.displayOrder)
+    }
+    if (editingSkillId.value) {
+      await axios.put(`/api/skills/${editingSkillId.value}`, payload, authHeaders())
+      showToast('기술 그룹이 수정되었습니다.')
+    } else {
+      await axios.post('/api/skills', payload, authHeaders())
+      showToast('기술 그룹이 추가되었습니다.')
+    }
+    showSkillModal.value = false; editingSkillId.value = null; await fetchSkillGroups()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('저장에 실패했습니다.', 'error')
+  } finally { saveSkillLoading.value = false }
+}
+
+const deleteSkill = async () => {
+  try {
+    await axios.delete(`/api/skills/${deleteSkillConfirmId.value}`, authHeaders())
+    deleteSkillConfirmId.value = null; showToast('기술 그룹이 삭제되었습니다.'); await fetchSkillGroups()
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('삭제에 실패했습니다.', 'error')
+  }
+}
+
+// ════════════════════════════════════════════════
+// 사이트 설정 탭
+// ════════════════════════════════════════════════
+const siteConfig = ref({})
+const configLoading = ref(true)
+const saveConfigLoading = ref(false)
+const configForm = ref({})
+
+const CONFIG_LABELS = {
+  'hero.badge': '뱃지 텍스트',
+  'hero.name': '이름',
+  'hero.description': '소개 문구',
+  'hero.stat1.value': '통계1 값',
+  'hero.stat1.label': '통계1 라벨',
+  'hero.stat2.value': '통계2 값',
+  'hero.stat2.label': '통계2 라벨',
+  'hero.stat3.value': '통계3 값',
+  'hero.stat3.label': '통계3 라벨',
+  'hero.githubUrl': 'GitHub URL',
+  'hero.email': '이메일',
+  'contact.email': '연락처 이메일',
+  'contact.github': '연락처 GitHub URL',
+}
+
+const fetchSiteConfig = async () => {
+  configLoading.value = true
+  try {
+    const res = await axios.get('/api/config')
+    siteConfig.value = res.data
+    configForm.value = { ...res.data }
+  } catch { showToast('설정을 불러오지 못했습니다.', 'error') }
+  finally { configLoading.value = false }
+}
+
+const saveSiteConfig = async () => {
+  saveConfigLoading.value = true
+  try {
+    await axios.put('/api/config', configForm.value, authHeaders())
+    siteConfig.value = { ...configForm.value }
+    showToast('설정이 저장되었습니다.')
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('저장에 실패했습니다.', 'error')
+  } finally { saveConfigLoading.value = false }
+}
+
+// ── 탭 전환 시 데이터 로드 ────────────────────────
+const switchTab = (tab) => {
+  activeTab.value = tab
+  if (tab === 'projects' && projects.value.length === 0) fetchProjects()
+  if (tab === 'experiences' && experiences.value.length === 0) fetchExperiences()
+  if (tab === 'skills' && skillGroups.value.length === 0) fetchSkillGroups()
+  if (tab === 'config' && Object.keys(siteConfig.value).length === 0) fetchSiteConfig()
 }
 
 onMounted(fetchProjects)
@@ -235,203 +421,463 @@ onMounted(fetchProjects)
       </div>
     </header>
 
+    <!-- 탭 네비게이션 -->
+    <nav class="tab-nav">
+      <div class="tab-nav-inner">
+        <button
+          v-for="tab in [
+            { key: 'projects', label: '프로젝트' },
+            { key: 'experiences', label: '경력' },
+            { key: 'skills', label: '기술 스택' },
+            { key: 'config', label: '사이트 설정' },
+          ]"
+          :key="tab.key"
+          :class="['tab-btn', { active: activeTab === tab.key }]"
+          @click="switchTab(tab.key)"
+        >{{ tab.label }}</button>
+      </div>
+    </nav>
+
     <main class="admin-main">
-      <div class="section-top">
-        <div>
-          <h2 class="section-title">프로젝트 관리</h2>
-          <p class="section-sub">총 {{ projects.length }}개의 프로젝트</p>
+
+      <!-- ════ 프로젝트 탭 ════ -->
+      <div v-if="activeTab === 'projects'">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title">프로젝트 관리</h2>
+            <p class="section-sub">총 {{ projects.length }}개의 프로젝트</p>
+          </div>
+          <button @click="openCreateProject" class="btn btn-primary">+ 새 프로젝트</button>
         </div>
-        <button @click="openCreate" class="btn btn-primary">+ 새 프로젝트</button>
+
+        <div v-if="projectsLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
+        <div v-else class="project-grid">
+          <div v-for="project in projects" :key="project.id" class="project-card">
+            <div class="card-thumb">
+              <img v-if="project.thumbnail" :src="project.thumbnail" :alt="project.title"
+                @error="e => e.target.style.display='none'" />
+              <div v-else class="thumb-placeholder">No Image</div>
+            </div>
+            <div class="card-body">
+              <div class="card-meta">
+                <span class="card-period">{{ project.period }}</span>
+                <span class="card-id">#{{ project.id }}</span>
+              </div>
+              <h3 class="card-title">{{ project.title }}</h3>
+              <p class="card-desc">{{ project.description }}</p>
+              <div class="card-skills">
+                <span v-for="skill in (project.skills || []).slice(0, 4)" :key="skill" class="skill-badge">{{ skill }}</span>
+                <span v-if="(project.skills || []).length > 4" class="skill-more">+{{ project.skills.length - 4 }}</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button @click="openEditProject(project)" class="btn btn-sm btn-outline">수정</button>
+              <button @click="deleteProjectConfirmId = project.id" class="btn btn-sm btn-danger">삭제</button>
+            </div>
+          </div>
+          <div v-if="projects.length === 0" class="empty-state">
+            <p>등록된 프로젝트가 없습니다.</p>
+            <button @click="openCreateProject" class="btn btn-primary" style="margin-top:1rem">첫 번째 프로젝트 추가하기</button>
+          </div>
+        </div>
       </div>
 
-      <div v-if="loading" class="loading-box">데이터를 불러오는 중입니다...</div>
-
-      <div v-else class="project-grid">
-        <div v-for="project in projects" :key="project.id" class="project-card">
-          <div class="card-thumb">
-            <img v-if="project.thumbnail" :src="project.thumbnail" :alt="project.title"
-              @error="e => e.target.style.display='none'" />
-            <div v-else class="thumb-placeholder">No Image</div>
+      <!-- ════ 경력 탭 ════ -->
+      <div v-if="activeTab === 'experiences'">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title">경력 관리</h2>
+            <p class="section-sub">총 {{ experiences.length }}개의 경력</p>
           </div>
-          <div class="card-body">
-            <div class="card-meta">
-              <span class="card-period">{{ project.period }}</span>
-              <span class="card-id">#{{ project.id }}</span>
-            </div>
-            <h3 class="card-title">{{ project.title }}</h3>
-            <p class="card-desc">{{ project.description }}</p>
-            <div class="card-skills">
-              <span v-for="skill in (project.skills || []).slice(0, 4)" :key="skill" class="skill-badge">{{ skill }}</span>
-              <span v-if="(project.skills || []).length > 4" class="skill-more">+{{ project.skills.length - 4 }}</span>
-            </div>
-          </div>
-          <div class="card-actions">
-            <button @click="openEdit(project)" class="btn btn-sm btn-outline">수정</button>
-            <button @click="confirmDelete(project.id)" class="btn btn-sm btn-danger">삭제</button>
-          </div>
+          <button @click="openCreateExp" class="btn btn-primary">+ 경력 추가</button>
         </div>
 
-        <div v-if="projects.length === 0" class="empty-state">
-          <p>등록된 프로젝트가 없습니다.</p>
-          <button @click="openCreate" class="btn btn-primary" style="margin-top:1rem">첫 번째 프로젝트 추가하기</button>
+        <div v-if="expLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
+        <div v-else class="list-stack">
+          <div v-for="exp in experiences" :key="exp.id" class="list-card">
+            <div class="list-card-body">
+              <div class="list-card-top">
+                <div>
+                  <div style="display:flex;align-items:center;gap:0.6rem">
+                    <h3 class="list-title">{{ exp.company }}</h3>
+                    <span v-if="exp.current" class="badge-current">재직중</span>
+                  </div>
+                  <div class="list-sub">{{ exp.role }} · {{ exp.type }}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                  <div class="list-period">{{ exp.period }}</div>
+                  <div class="list-duration">{{ exp.duration }}</div>
+                </div>
+              </div>
+              <p class="list-desc">{{ exp.description }}</p>
+              <div class="tag-row">
+                <span v-for="tag in exp.tags" :key="tag" class="skill-badge">{{ tag }}</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button @click="openEditExp(exp)" class="btn btn-sm btn-outline">수정</button>
+              <button @click="deleteExpConfirmId = exp.id" class="btn btn-sm btn-danger">삭제</button>
+            </div>
+          </div>
+          <div v-if="experiences.length === 0" class="empty-state">
+            <p>등록된 경력이 없습니다.</p>
+          </div>
         </div>
       </div>
+
+      <!-- ════ 기술 스택 탭 ════ -->
+      <div v-if="activeTab === 'skills'">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title">기술 스택 관리</h2>
+            <p class="section-sub">총 {{ skillGroups.length }}개의 그룹</p>
+          </div>
+          <button @click="openCreateSkill" class="btn btn-primary">+ 그룹 추가</button>
+        </div>
+
+        <div v-if="skillsLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
+        <div v-else class="skills-admin-grid">
+          <div v-for="sg in skillGroups" :key="sg.id" class="skill-admin-card">
+            <div class="skill-admin-header">
+              <span class="skill-icon">{{ sg.icon }}</span>
+              <h3 class="skill-name" :style="{ color: sg.color }">{{ sg.name }}</h3>
+              <span class="skill-order">#{{ sg.displayOrder }}</span>
+            </div>
+            <div class="skill-chips">
+              <span v-for="s in sg.skills" :key="s" class="skill-chip" :style="{ borderColor: sg.color + '44', color: sg.color }">{{ s }}</span>
+            </div>
+            <div class="card-actions" style="padding:0.75rem 1.25rem;border-top:1px solid #334155">
+              <button @click="openEditSkill(sg)" class="btn btn-sm btn-outline">수정</button>
+              <button @click="deleteSkillConfirmId = sg.id" class="btn btn-sm btn-danger">삭제</button>
+            </div>
+          </div>
+          <div v-if="skillGroups.length === 0" class="empty-state" style="grid-column:1/-1">
+            <p>등록된 기술 그룹이 없습니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ 사이트 설정 탭 ════ -->
+      <div v-if="activeTab === 'config'">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title">사이트 설정</h2>
+            <p class="section-sub">Hero 섹션 및 연락처 정보 관리</p>
+          </div>
+          <button @click="saveSiteConfig" class="btn btn-primary" :disabled="saveConfigLoading">
+            {{ saveConfigLoading ? '저장 중...' : '전체 저장' }}
+          </button>
+        </div>
+
+        <div v-if="configLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
+        <div v-else class="config-form">
+          <div class="config-section">
+            <div class="config-section-title">Hero 섹션</div>
+            <div class="config-grid">
+              <template v-for="key in ['hero.badge','hero.name','hero.githubUrl','hero.email','hero.stat1.value','hero.stat1.label','hero.stat2.value','hero.stat2.label','hero.stat3.value','hero.stat3.label']" :key="key">
+                <div class="form-group">
+                  <label>{{ CONFIG_LABELS[key] || key }}</label>
+                  <input v-model="configForm[key]" :placeholder="key" />
+                </div>
+              </template>
+              <div class="form-group config-full">
+                <label>소개 문구</label>
+                <textarea v-model="configForm['hero.description']" rows="3" placeholder="소개 문구"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-section-title">연락처</div>
+            <div class="config-grid">
+              <div class="form-group">
+                <label>{{ CONFIG_LABELS['contact.email'] }}</label>
+                <input v-model="configForm['contact.email']" placeholder="이메일" />
+              </div>
+              <div class="form-group">
+                <label>{{ CONFIG_LABELS['contact.github'] }}</label>
+                <input v-model="configForm['contact.github']" placeholder="GitHub URL" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
 
-    <!-- ── 프로젝트 편집 모달 ── -->
-    <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+    <!-- ════ 프로젝트 모달 ════ -->
+    <div v-if="showProjectModal" class="modal-backdrop" @click.self="showProjectModal = false">
       <div class="modal">
         <div class="modal-header">
-          <h3>{{ modalTitle }}</h3>
-          <button @click="closeModal" class="modal-close">✕</button>
+          <h3>{{ projectModalTitle }}</h3>
+          <button @click="showProjectModal = false" class="modal-close">✕</button>
         </div>
-
         <div class="modal-body">
           <form @submit.prevent="saveProject" id="project-form">
-
-            <!-- 기본 정보 -->
             <div class="form-section-title">기본 정보</div>
-
             <div class="form-row">
               <div class="form-group">
                 <label>제목 *</label>
-                <input v-model="form.title" placeholder="프로젝트 제목" required />
+                <input v-model="projectForm.title" placeholder="프로젝트 제목" required />
               </div>
               <div class="form-group">
                 <label>기간</label>
-                <input v-model="form.period" placeholder="2024.01 ~ 2024.06 (6개월)" />
+                <input v-model="projectForm.period" placeholder="2024.01 ~ 2024.06 (6개월)" />
               </div>
             </div>
-
             <div class="form-group">
               <label>한 줄 설명 *</label>
-              <input v-model="form.description" placeholder="카드에 표시되는 짧은 설명" required />
+              <input v-model="projectForm.description" placeholder="카드에 표시되는 짧은 설명" required />
             </div>
-
             <div class="form-group">
               <label>상세 설명</label>
-              <textarea v-model="form.longDescription" rows="4" placeholder="모달에서 표시되는 상세 설명"></textarea>
+              <textarea v-model="projectForm.longDescription" rows="4" placeholder="모달에서 표시되는 상세 설명"></textarea>
             </div>
-
             <div class="form-row">
               <div class="form-group">
                 <label>GitHub URL</label>
-                <input v-model="form.github" placeholder="https://github.com/..." type="url" />
+                <input v-model="projectForm.github" placeholder="https://github.com/..." type="url" />
               </div>
               <div class="form-group">
                 <label>기술 스택 <span class="hint">(쉼표로 구분)</span></label>
-                <input v-model="form.skills" placeholder="Java, Spring Boot, Vue.js" />
+                <input v-model="projectForm.skills" placeholder="Java, Spring Boot, Vue.js" />
               </div>
             </div>
-
             <div class="form-group">
               <label>담당 역할 <span class="hint">(한 줄에 하나씩)</span></label>
-              <textarea v-model="form.roles" rows="3" placeholder="백엔드 API 설계 및 구현&#10;데이터베이스 최적화"></textarea>
+              <textarea v-model="projectForm.roles" rows="3" placeholder="백엔드 API 설계 및 구현&#10;데이터베이스 최적화"></textarea>
             </div>
 
-            <!-- 썸네일 -->
             <div class="form-section-title" style="margin-top:1.5rem">썸네일 이미지</div>
             <div class="form-group">
               <div class="image-upload-area">
-                <!-- 미리보기 -->
                 <div class="thumb-preview-wrap">
-                  <img v-if="form.thumbnail" :src="form.thumbnail" class="thumb-preview"
+                  <img v-if="projectForm.thumbnail" :src="projectForm.thumbnail" class="thumb-preview"
                     @error="e => e.target.style.display='none'" />
                   <div v-else class="thumb-preview-empty">미리보기 없음</div>
                 </div>
-                <!-- 업로드 / URL -->
                 <div class="image-upload-controls">
-                  <input ref="thumbnailInput" type="file" accept="image/*" style="display:none"
-                    @change="onThumbnailFile" />
-                  <button type="button" class="btn btn-outline btn-sm"
-                    :disabled="thumbnailUploading"
-                    @click="thumbnailInput.click()">
+                  <input ref="thumbnailInput" type="file" accept="image/*" style="display:none" @change="onThumbnailFile" />
+                  <button type="button" class="btn btn-outline btn-sm" :disabled="thumbnailUploading" @click="thumbnailInput.click()">
                     {{ thumbnailUploading ? '업로드 중...' : '파일 선택' }}
                   </button>
                   <span class="divider-text">또는</span>
-                  <input v-model="form.thumbnail" placeholder="이미지 URL 직접 입력" class="url-input" />
+                  <input v-model="projectForm.thumbnail" placeholder="이미지 URL 직접 입력" class="url-input" />
                 </div>
               </div>
             </div>
 
-            <!-- 이미지 목록 -->
             <div class="form-section-title" style="margin-top:1.5rem">상세 이미지 목록</div>
             <div class="form-group">
-              <!-- 현재 이미지 목록 -->
-              <div v-if="form.images.length" class="image-list">
-                <div v-for="(img, i) in form.images" :key="i" class="image-list-item">
+              <div v-if="projectForm.images.length" class="image-list">
+                <div v-for="(img, i) in projectForm.images" :key="i" class="image-list-item">
                   <img :src="img" @error="e => e.target.style.display='none'" class="image-list-thumb" />
                   <span class="image-list-url">{{ img }}</span>
                   <button type="button" class="btn-remove" @click="removeImage(i)">✕</button>
                 </div>
               </div>
               <p v-else class="no-images">추가된 이미지가 없습니다.</p>
-
-              <!-- 이미지 추가 -->
               <div class="image-add-row">
-                <input ref="imageInput" type="file" accept="image/*" multiple style="display:none"
-                  @change="onImageFile" />
-                <button type="button" class="btn btn-outline btn-sm"
-                  :disabled="imageUploading"
-                  @click="imageInput.click()">
+                <input ref="imageInput" type="file" accept="image/*" multiple style="display:none" @change="onImageFile" />
+                <button type="button" class="btn btn-outline btn-sm" :disabled="imageUploading" @click="imageInput.click()">
                   {{ imageUploading ? '업로드 중...' : '+ 파일 업로드' }}
                 </button>
                 <span class="divider-text">또는</span>
-                <input v-model="newImageUrl" placeholder="이미지 URL 입력 후 Enter"
-                  class="url-input" @keydown.enter.prevent="addImageUrl" />
+                <input v-model="newImageUrl" placeholder="이미지 URL 입력 후 Enter" class="url-input"
+                  @keydown.enter.prevent="addImageUrl" />
                 <button type="button" class="btn btn-outline btn-sm" @click="addImageUrl">추가</button>
               </div>
             </div>
 
-            <!-- 문제 해결 -->
             <div class="form-section-title" style="margin-top:1.5rem">문제 해결 과정</div>
-
             <div class="form-group">
               <label>문제 상황</label>
-              <textarea v-model="form.problem" rows="2" placeholder="어떤 기술적 문제가 있었나요?"></textarea>
+              <textarea v-model="projectForm.problem" rows="2" placeholder="어떤 기술적 문제가 있었나요?"></textarea>
             </div>
             <div class="form-group">
               <label>해결 방법</label>
-              <textarea v-model="form.solution" rows="2" placeholder="어떻게 해결했나요?"></textarea>
+              <textarea v-model="projectForm.solution" rows="2" placeholder="어떻게 해결했나요?"></textarea>
             </div>
             <div class="form-group">
               <label>결과</label>
-              <textarea v-model="form.result" rows="2" placeholder="어떤 성과가 있었나요?"></textarea>
+              <textarea v-model="projectForm.result" rows="2" placeholder="어떤 성과가 있었나요?"></textarea>
             </div>
-
           </form>
         </div>
-
         <div class="modal-footer">
-          <button @click="closeModal" class="btn btn-ghost">취소</button>
-          <button type="submit" form="project-form" class="btn btn-primary" :disabled="saveLoading">
-            {{ saveLoading ? '저장 중...' : (editingId ? '수정 완료' : '추가 완료') }}
+          <button @click="showProjectModal = false" class="btn btn-ghost">취소</button>
+          <button type="submit" form="project-form" class="btn btn-primary" :disabled="saveProjectLoading">
+            {{ saveProjectLoading ? '저장 중...' : (editingProjectId ? '수정 완료' : '추가 완료') }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ── 삭제 확인 모달 ── -->
-    <div v-if="deleteConfirmId" class="modal-backdrop" @click.self="deleteConfirmId = null">
+    <!-- ════ 경력 모달 ════ -->
+    <div v-if="showExpModal" class="modal-backdrop" @click.self="showExpModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>{{ expModalTitle }}</h3>
+          <button @click="showExpModal = false" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="saveExp" id="exp-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>회사명 *</label>
+                <input v-model="expForm.company" placeholder="(주)회사명" required />
+              </div>
+              <div class="form-group">
+                <label>표시 순서</label>
+                <input v-model="expForm.displayOrder" type="number" placeholder="1" />
+              </div>
+            </div>
+            <!-- 근무 기간 -->
+            <div class="form-section-title">근무 기간</div>
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+              <input type="checkbox" v-model="expForm.current" id="current-check" style="width:16px;height:16px;cursor:pointer;flex-shrink:0" />
+              <label for="current-check" style="margin:0;cursor:pointer;font-size:0.9rem;color:#f1f5f9">현재 재직 중</label>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>시작 월 *</label>
+                <input type="month" v-model="expForm.startDate" required />
+              </div>
+              <div class="form-group">
+                <label>종료 월</label>
+                <input type="month" v-model="expForm.endDate"
+                  :disabled="expForm.current"
+                  :style="expForm.current ? 'opacity:0.4;cursor:not-allowed' : ''"
+                  :placeholder="expForm.current ? '현재 재직 중' : '종료 월 선택'" />
+              </div>
+            </div>
+            <div class="form-group" v-if="expDuration">
+              <label>재직 기간 (자동 계산)</label>
+              <div class="duration-display">{{ expDuration }}</div>
+            </div>
+            <!-- 역할 / 유형 -->
+            <div class="form-section-title" style="margin-top:0.5rem">직책 정보</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>직급</label>
+                <input v-model="expForm.role" placeholder="개발팀 대리" />
+              </div>
+              <div class="form-group">
+                <label>업무 유형</label>
+                <input v-model="expForm.type" placeholder="SI 개발" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>업무 내용</label>
+              <textarea v-model="expForm.description" rows="3" placeholder="담당한 주요 업무를 입력하세요."></textarea>
+            </div>
+            <div class="form-group">
+              <label>기술 태그 <span class="hint">(쉼표로 구분)</span></label>
+              <input v-model="expForm.tags" placeholder="Java, Spring Boot, Oracle" />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button @click="showExpModal = false" class="btn btn-ghost">취소</button>
+          <button type="submit" form="exp-form" class="btn btn-primary" :disabled="saveExpLoading">
+            {{ saveExpLoading ? '저장 중...' : (editingExpId ? '수정 완료' : '추가 완료') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ 기술 그룹 모달 ════ -->
+    <div v-if="showSkillModal" class="modal-backdrop" @click.self="showSkillModal = false">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h3>{{ skillModalTitle }}</h3>
+          <button @click="showSkillModal = false" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="saveSkill" id="skill-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>그룹명 *</label>
+                <input v-model="skillForm.name" placeholder="Backend" required />
+              </div>
+              <div class="form-group">
+                <label>아이콘 (이모지)</label>
+                <input v-model="skillForm.icon" placeholder="⚙️" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>색상 (HEX)</label>
+                <div style="display:flex;gap:0.5rem;align-items:center">
+                  <input type="color" v-model="skillForm.color" style="width:40px;height:36px;padding:2px;border-radius:6px;border:1px solid #334155;background:#0f172a;cursor:pointer" />
+                  <input v-model="skillForm.color" placeholder="#3b82f6" style="flex:1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>표시 순서</label>
+                <input v-model="skillForm.displayOrder" type="number" placeholder="1" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>기술 목록 <span class="hint">(쉼표로 구분)</span></label>
+              <textarea v-model="skillForm.skills" rows="3" placeholder="Java, Spring Boot, JPA"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button @click="showSkillModal = false" class="btn btn-ghost">취소</button>
+          <button type="submit" form="skill-form" class="btn btn-primary" :disabled="saveSkillLoading">
+            {{ saveSkillLoading ? '저장 중...' : (editingSkillId ? '수정 완료' : '추가 완료') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ 삭제 확인 모달들 ════ -->
+    <div v-if="deleteProjectConfirmId" class="modal-backdrop" @click.self="deleteProjectConfirmId = null">
       <div class="modal modal-sm">
         <div class="modal-header">
           <h3>프로젝트 삭제</h3>
-          <button @click="deleteConfirmId = null" class="modal-close">✕</button>
+          <button @click="deleteProjectConfirmId = null" class="modal-close">✕</button>
         </div>
-        <div class="modal-body">
-          <p>이 프로젝트를 삭제하시겠습니까?<br />이 작업은 되돌릴 수 없습니다.</p>
-        </div>
+        <div class="modal-body"><p>이 프로젝트를 삭제하시겠습니까?<br />이 작업은 되돌릴 수 없습니다.</p></div>
         <div class="modal-footer">
-          <button @click="deleteConfirmId = null" class="btn btn-ghost">취소</button>
+          <button @click="deleteProjectConfirmId = null" class="btn btn-ghost">취소</button>
           <button @click="deleteProject" class="btn btn-danger">삭제</button>
         </div>
       </div>
     </div>
 
-    <!-- ── 토스트 ── -->
-    <div v-if="toast.show" :class="['toast', `toast-${toast.type}`]">
-      {{ toast.message }}
+    <div v-if="deleteExpConfirmId" class="modal-backdrop" @click.self="deleteExpConfirmId = null">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h3>경력 삭제</h3>
+          <button @click="deleteExpConfirmId = null" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body"><p>이 경력을 삭제하시겠습니까?</p></div>
+        <div class="modal-footer">
+          <button @click="deleteExpConfirmId = null" class="btn btn-ghost">취소</button>
+          <button @click="deleteExp" class="btn btn-danger">삭제</button>
+        </div>
+      </div>
     </div>
+
+    <div v-if="deleteSkillConfirmId" class="modal-backdrop" @click.self="deleteSkillConfirmId = null">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h3>기술 그룹 삭제</h3>
+          <button @click="deleteSkillConfirmId = null" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body"><p>이 기술 그룹을 삭제하시겠습니까?</p></div>
+        <div class="modal-footer">
+          <button @click="deleteSkillConfirmId = null" class="btn btn-ghost">취소</button>
+          <button @click="deleteSkill" class="btn btn-danger">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 토스트 -->
+    <div v-if="toast.show" :class="['toast', `toast-${toast.type}`]">{{ toast.message }}</div>
   </div>
 </template>
 
@@ -478,19 +924,48 @@ onMounted(fetchProjects)
   border-radius: 50%;
 }
 
-.admin-header-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
+.admin-header-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+/* ── 탭 네비게이션 ── */
+.tab-nav {
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  position: sticky;
+  top: 64px;
+  z-index: 99;
 }
 
+.tab-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  gap: 0;
+}
+
+.tab-btn {
+  padding: 0.85rem 1.4rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+
+.tab-btn:hover { color: #94a3b8; }
+.tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; }
+
+/* ── 메인 ── */
 .admin-main {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2.5rem 2rem;
 }
 
-/* ── 섹션 상단 ── */
 .section-top {
   display: flex;
   justify-content: space-between;
@@ -498,17 +973,8 @@ onMounted(fetchProjects)
   margin-bottom: 2rem;
 }
 
-.section-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #f1f5f9;
-}
-
-.section-sub {
-  color: #64748b;
-  font-size: 0.9rem;
-  margin-top: 0.2rem;
-}
+.section-title { font-size: 1.8rem; font-weight: 700; color: #f1f5f9; }
+.section-sub { color: #64748b; font-size: 0.9rem; margin-top: 0.2rem; }
 
 /* ── 프로젝트 그리드 ── */
 .project-grid {
@@ -527,82 +993,104 @@ onMounted(fetchProjects)
   flex-direction: column;
 }
 
-.project-card:hover {
-  border-color: #6366f1;
-  transform: translateY(-2px);
-}
+.project-card:hover { border-color: #6366f1; transform: translateY(-2px); }
 
-.card-thumb {
-  height: 160px;
-  overflow: hidden;
-  background: #0f172a;
-}
+.card-thumb { height: 160px; overflow: hidden; background: #0f172a; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 0.85rem; }
 
-.card-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #475569;
-  font-size: 0.85rem;
-}
-
-.card-body {
-  padding: 1.25rem;
-  flex: 1;
-}
-
-.card-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
+.card-body { padding: 1.25rem; flex: 1; }
+.card-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
 .card-period { font-size: 0.78rem; color: #6366f1; font-weight: 600; }
 .card-id { font-size: 0.75rem; color: #475569; }
+.card-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.4rem; line-height: 1.4; }
+.card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.75rem; }
+.card-skills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
-.card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  margin-bottom: 0.4rem;
-  line-height: 1.4;
+/* ── 경력 목록 ── */
+.list-stack { display: flex; flex-direction: column; gap: 1rem; }
+
+.list-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
 }
 
-.card-desc {
-  font-size: 0.82rem;
-  color: #94a3b8;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.list-card:hover { border-color: #6366f1; }
+.list-card-body { padding: 1.5rem; }
+
+.list-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   margin-bottom: 0.75rem;
 }
 
-.card-skills {
+.list-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+.list-sub { font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem; }
+.list-period { font-size: 0.85rem; color: #6366f1; font-weight: 600; }
+.list-duration { font-size: 0.78rem; color: #475569; margin-top: 0.2rem; }
+.list-desc { font-size: 0.88rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem; }
+.badge-current { font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 999px; background: rgba(99,102,241,0.12); color: #6366f1; border: 1px solid rgba(99,102,241,0.3); }
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* ── 기술 스택 그리드 ── */
+.skills-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.skill-admin-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.skill-admin-card:hover { border-color: #6366f1; }
+
+.skill-admin-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem 1.25rem 0.75rem;
+}
+
+.skill-icon { font-size: 1.3rem; }
+.skill-name { font-size: 1rem; font-weight: 700; flex: 1; }
+.skill-order { font-size: 0.72rem; color: #475569; }
+
+.skill-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+  padding: 0 1.25rem 1.25rem;
 }
 
-.skill-badge {
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 4px;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.72rem;
-  color: #94a3b8;
+.skill-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid;
+  background: transparent;
 }
 
+/* ── 사이트 설정 ── */
+.config-form { display: flex; flex-direction: column; gap: 2rem; }
+.config-section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.75rem; }
+.config-section-title { font-size: 0.78rem; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem; padding-bottom: 0.4rem; border-bottom: 1px solid #334155; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.config-full { grid-column: 1 / -1; }
+
+/* ── 공통 배지/칩 ── */
+.skill-badge { background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 0.15rem 0.5rem; font-size: 0.72rem; color: #94a3b8; }
 .skill-more { font-size: 0.72rem; color: #475569; align-self: center; }
 
 .card-actions {
@@ -626,29 +1114,26 @@ onMounted(fetchProjects)
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  font-family: inherit;
 }
 
 .btn-primary { background: #6366f1; color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #4f46e5; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
 .btn-outline { background: transparent; border: 1px solid #475569; color: #94a3b8; }
 .btn-outline:hover:not(:disabled) { border-color: #6366f1; color: #6366f1; }
 .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
-
 .btn-ghost { background: transparent; color: #94a3b8; }
 .btn-ghost:hover { color: #f1f5f9; }
-
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-danger:hover { background: #dc2626; }
-
 .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.82rem; }
 
 /* ── 모달 ── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0,0,0,0.7);
   z-index: 200;
   display: flex;
   align-items: center;
@@ -665,10 +1150,10 @@ onMounted(fetchProjects)
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
 }
 
-.modal-sm { max-width: 400px; }
+.modal-sm { max-width: 480px; }
 
 .modal-header {
   padding: 1.5rem 1.75rem;
@@ -680,57 +1165,16 @@ onMounted(fetchProjects)
 }
 
 .modal-header h3 { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; }
-
-.modal-close {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: color 0.2s;
-}
-
+.modal-close { background: none; border: none; color: #64748b; font-size: 1.1rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; transition: color 0.2s; }
 .modal-close:hover { color: #f1f5f9; }
-
 .modal-body { padding: 1.75rem; overflow-y: auto; flex: 1; }
 .modal-body p { color: #94a3b8; line-height: 1.6; }
-
-.modal-footer {
-  padding: 1.25rem 1.75rem;
-  border-top: 1px solid #334155;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
+.modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0; }
 
 /* ── 폼 ── */
-.form-section-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #6366f1;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 1rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid #334155;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1rem;
-}
-
+.form-section-title { font-size: 0.8rem; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid #334155; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
 .form-group label { font-size: 0.8rem; font-weight: 600; color: #94a3b8; }
 .form-group .hint { font-weight: 400; color: #475569; }
 
@@ -751,146 +1195,37 @@ onMounted(fetchProjects)
 .form-group input:focus,
 .form-group textarea:focus { border-color: #6366f1; }
 
-/* ── 썸네일 업로드 ── */
-.image-upload-area {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.thumb-preview-wrap {
-  width: 120px;
-  height: 80px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #0f172a;
-  border: 1px solid #334155;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.thumb-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb-preview-empty {
-  font-size: 0.72rem;
-  color: #475569;
-  text-align: center;
-  padding: 0.5rem;
-}
-
-.image-upload-controls {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.divider-text {
-  font-size: 0.75rem;
-  color: #475569;
-  text-align: center;
-}
-
-.url-input {
-  flex: 1;
-  padding: 0.55rem 0.8rem;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  color: #f1f5f9;
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s;
-  font-family: inherit;
-}
-
+/* ── 이미지 업로드 ── */
+.image-upload-area { display: flex; gap: 1rem; align-items: flex-start; }
+.thumb-preview-wrap { width: 120px; height: 80px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #0f172a; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; }
+.thumb-preview { width: 100%; height: 100%; object-fit: cover; }
+.thumb-preview-empty { font-size: 0.72rem; color: #475569; text-align: center; padding: 0.5rem; }
+.image-upload-controls { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; }
+.divider-text { font-size: 0.75rem; color: #475569; text-align: center; }
+.url-input { flex: 1; padding: 0.55rem 0.8rem; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #f1f5f9; font-size: 0.85rem; outline: none; transition: border-color 0.2s; font-family: inherit; }
 .url-input:focus { border-color: #6366f1; }
+.image-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; max-height: 200px; overflow-y: auto; }
+.image-list-item { display: flex; align-items: center; gap: 0.6rem; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.4rem 0.6rem; }
+.image-list-thumb { width: 40px; height: 28px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: #1e293b; }
+.image-list-url { flex: 1; font-size: 0.75rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-remove { background: none; border: none; color: #64748b; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; border-radius: 4px; transition: color 0.2s; flex-shrink: 0; }
+.btn-remove:hover { color: #ef4444; }
+.no-images { color: #475569; font-size: 0.82rem; text-align: center; padding: 1rem; border: 1px dashed #334155; border-radius: 8px; margin-bottom: 0.75rem; }
 
-/* ── 이미지 목록 ── */
-.image-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.image-list-item {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
+.duration-display {
+  padding: 0.65rem 0.9rem;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  padding: 0.4rem 0.6rem;
+  color: #6366f1;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
-
-.image-list-thumb {
-  width: 40px;
-  height: 28px;
-  object-fit: cover;
-  border-radius: 4px;
-  flex-shrink: 0;
-  background: #1e293b;
-}
-
-.image-list-url {
-  flex: 1;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.btn-remove {
-  background: none;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-remove:hover { color: #ef4444; }
-
-.no-images {
-  color: #475569;
-  font-size: 0.82rem;
-  text-align: center;
-  padding: 1rem;
-  border: 1px dashed #334155;
-  border-radius: 8px;
-  margin-bottom: 0.75rem;
-}
-
-.image-add-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
+.image-add-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .image-add-row .url-input { min-width: 0; flex: 1; }
 
 /* ── 빈 상태 / 로딩 ── */
-.loading-box,
-.empty-state {
-  text-align: center;
-  padding: 5rem 2rem;
-  color: #475569;
-  font-size: 1rem;
-}
+.loading-box, .empty-state { text-align: center; padding: 5rem 2rem; color: #475569; font-size: 1rem; }
 
 /* ── 토스트 ── */
 .toast {
@@ -903,7 +1238,7 @@ onMounted(fetchProjects)
   font-weight: 600;
   z-index: 300;
   animation: slide-up 0.3s ease;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
 }
 
 .toast-success { background: #059669; color: #fff; }
@@ -916,10 +1251,11 @@ onMounted(fetchProjects)
 
 /* ── 반응형 ── */
 @media (max-width: 640px) {
-  .form-row { grid-template-columns: 1fr; }
+  .form-row, .config-grid { grid-template-columns: 1fr; }
   .section-top { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  .project-grid { grid-template-columns: 1fr; }
+  .project-grid, .skills-admin-grid { grid-template-columns: 1fr; }
   .image-upload-area { flex-direction: column; }
   .image-add-row { flex-direction: column; align-items: stretch; }
+  .tab-btn { padding: 0.75rem 0.9rem; font-size: 0.82rem; }
 }
 </style>

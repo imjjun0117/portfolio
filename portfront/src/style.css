@@ -1,14 +1,14 @@
 :root {
   --font-family: 'Pretendard', 'Inter', system-ui, -apple-system, sans-serif;
-  
+
   /* Light Mode */
   --bg-color: #ffffff;
-  --text-color: #1a1a1a;
-  --text-secondary: #666666;
+  --text-color: #0f172a;
+  --text-secondary: #64748b;
   --accent-color: #3b82f6;
   --card-bg: #f8fafc;
   --border-color: #e2e8f0;
-  --header-bg: rgba(255, 255, 255, 0.8);
+  --header-bg: rgba(255, 255, 255, 0.85);
 }
 
 [data-theme='dark'] {
@@ -19,13 +19,17 @@
   --accent-color: #60a5fa;
   --card-bg: #1e293b;
   --border-color: #334155;
-  --header-bg: rgba(15, 23, 42, 0.8);
+  --header-bg: rgba(15, 23, 42, 0.85);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -53,16 +57,52 @@ button {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 1.5rem;
 }
 
 section {
-  padding: 5rem 0;
+  padding: 3rem 0;
 }
 
-/* Scroll behavior */
-html {
-  scroll-behavior: smooth;
+/* ── 스크롤 페이드인 애니메이션 ── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 자식 요소 순차적 딜레이 */
+.fade-in:nth-child(2) { transition-delay: 0.1s; }
+.fade-in:nth-child(3) { transition-delay: 0.2s; }
+.fade-in:nth-child(4) { transition-delay: 0.3s; }
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* 선택 텍스트 색상 */
+::selection {
+  background: rgba(96, 165, 250, 0.25);
+  color: var(--text-color);
 }
