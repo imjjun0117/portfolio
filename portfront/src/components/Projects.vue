@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+const router = useRouter()
 
 const projects = ref([])
 const isLoading = ref(true)
@@ -31,6 +34,8 @@ onMounted(async () => {
           v-for="(project, i) in projects"
           :key="project.id"
           class="project-card"
+          style="cursor:pointer"
+          @click="router.push(`/projects/${project.id}`)"
         >
           <!-- 대표 이미지 -->
           <div class="card-thumb">
@@ -49,6 +54,9 @@ onMounted(async () => {
               <span>{{ project.title }}</span>
             </div>
           </div>
+
+          <!-- 바이브코딩 뱃지 -->
+          <div v-if="project.vibeCoding" class="vibe-badge">⚡ Vibe Coding</div>
 
           <!-- 상단: 제목 + 기간 + GitHub -->
           <div class="card-header">
@@ -73,6 +81,9 @@ onMounted(async () => {
           <div class="tag-row">
             <span v-for="skill in project.skills" :key="skill" class="tag">{{ skill }}</span>
           </div>
+
+          <!-- 자세히 보기 -->
+          <div class="detail-hint">자세히 보기 →</div>
 
           <!-- 담당 역할 -->
           <div v-if="project.roles && project.roles.length" class="role-block">
@@ -249,6 +260,34 @@ onMounted(async () => {
   background: rgba(96, 165, 250, 0.08);
   color: var(--accent-color);
   border: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+.vibe-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.03em;
+}
+
+.detail-hint {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  opacity: 0;
+  margin-top: 0.6rem;
+  transition: opacity 0.2s;
+}
+
+.project-card:hover .detail-hint {
+  opacity: 1;
 }
 
 .role-block {

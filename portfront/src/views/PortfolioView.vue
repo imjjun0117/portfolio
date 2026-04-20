@@ -4,7 +4,6 @@ import Hero from '../components/Hero.vue'
 import Experience from '../components/Experience.vue'
 import Projects from '../components/Projects.vue'
 import Skills from '../components/Skills.vue'
-import Contact from '../components/Contact.vue'
 
 const isDark = true
 
@@ -38,7 +37,6 @@ onMounted(() => {
             <li><a href="#experience">Experience</a></li>
             <li><a href="#projects">Projects</a></li>
             <li><a href="#skills">Skills</a></li>
-            <li><a href="#contact">Contact</a></li>
             <li>
               <a
                 href="https://github.com/imjjun0117"
@@ -61,7 +59,6 @@ onMounted(() => {
       <Experience id="experience" />
       <Projects id="projects" />
       <Skills id="skills" />
-      <Contact id="contact" />
     </main>
 
     <footer class="footer">

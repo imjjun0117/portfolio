@@ -37,6 +37,7 @@ public class ProjectService {
                 .skills(request.getSkills())
                 .roles(request.getRoles())
                 .images(request.getImages())
+                .vibeCoding(request.isVibeCoding())
                 .problemSolving(ProblemSolving.builder()
                         .problem(request.getProblem())
                         .solution(request.getSolution())
@@ -58,6 +59,7 @@ public class ProjectService {
             project.setSkills(request.getSkills());
             project.setRoles(request.getRoles());
             project.setImages(request.getImages());
+            project.setVibeCoding(request.isVibeCoding());
 
             ProblemSolving ps = project.getProblemSolving();
             if (ps == null) {

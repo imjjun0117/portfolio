@@ -45,4 +45,7 @@ public class Project {
     @CollectionTable(name = "project_images", joinColumns = @JoinColumn(name = "project_id"))
     @Column(name = "image_url")
     private List<String> images;
+
+    @Column(columnDefinition = "boolean not null default false")
+    private boolean vibeCoding;
 }

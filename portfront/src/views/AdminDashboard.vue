@@ -52,8 +52,10 @@ const imageUploading = ref(false)
 const newImageUrl = ref('')
 
 const emptyProjectForm = () => ({
-  title: '', description: '', longDescription: '', period: '', github: '',
-  thumbnail: '', skills: '', roles: '', images: [], problem: '', solution: '', result: ''
+  title: '', description: '', longDescription: '',
+  startDate: '', endDate: '', ongoing: false,
+  github: '', thumbnail: '', skills: '', roles: '', images: [],
+  problem: '', solution: '', result: '', vibeCoding: false
 })
 const projectForm = ref(emptyProjectForm())
 const projectModalTitle = computed(() => editingProjectId.value ? '프로젝트 수정' : '프로젝트 추가')
@@ -76,13 +78,17 @@ const openCreateProject = () => {
 
 const openEditProject = (p) => {
   editingProjectId.value = p.id
+  const parts = (p.period || '').split(' ~ ')
   projectForm.value = {
     title: p.title || '', description: p.description || '', longDescription: p.longDescription || '',
-    period: p.period || '', github: p.github || '', thumbnail: p.thumbnail || '',
+    startDate: parseToInputMonth(parts[0] || ''),
+    endDate: parseToInputMonth(parts[1] || ''),
+    ongoing: (parts[1] || '') === '현재',
+    github: p.github || '', thumbnail: p.thumbnail || '',
     skills: (p.skills || []).join(', '), roles: (p.roles || []).join('\n'),
     images: [...(p.images || [])],
     problem: p.problemSolving?.problem || '', solution: p.problemSolving?.solution || '',
-    result: p.problemSolving?.result || ''
+    result: p.problemSolving?.result || '', vibeCoding: p.vibeCoding || false
   }
   newImageUrl.value = ''
   showProjectModal.value = true
@@ -113,17 +119,29 @@ const addImageUrl = () => {
 
 const removeImage = (i) => projectForm.value.images.splice(i, 1)
 
+const projectDuration = computed(() =>
+  calcDurationStr(projectForm.value.startDate, projectForm.value.endDate, projectForm.value.ongoing)
+)
+watch(() => projectForm.value.ongoing, (val) => {
+  if (val) projectForm.value.endDate = ''
+})
+
 const saveProject = async () => {
   saveProjectLoading.value = true
   try {
+    const { startDate, endDate, ongoing } = projectForm.value
+    const period = startDate
+      ? `${formatMonth(startDate)} ~ ${ongoing ? '현재' : formatMonth(endDate)}`
+      : ''
     const payload = {
       title: projectForm.value.title, description: projectForm.value.description,
-      longDescription: projectForm.value.longDescription, period: projectForm.value.period,
+      longDescription: projectForm.value.longDescription, period,
       github: projectForm.value.github, thumbnail: projectForm.value.thumbnail,
       skills: projectForm.value.skills.split(',').map(s => s.trim()).filter(Boolean),
       roles: projectForm.value.roles.split('\n').map(s => s.trim()).filter(Boolean),
       images: projectForm.value.images,
-      problem: projectForm.value.problem, solution: projectForm.value.solution, result: projectForm.value.result
+      problem: projectForm.value.problem, solution: projectForm.value.solution, result: projectForm.value.result,
+      vibeCoding: projectForm.value.vibeCoding
     }
     if (editingProjectId.value) {
       await axios.put(`/api/projects/${editingProjectId.value}`, payload, authHeaders())
@@ -621,8 +639,27 @@ onMounted(fetchProjects)
                 <input v-model="projectForm.title" placeholder="프로젝트 제목" required />
               </div>
               <div class="form-group">
+                <label>바이브코딩 여부</label>
+                <label class="vibe-check">
+                  <input type="checkbox" v-model="projectForm.vibeCoding" />
+                  <span>AI 바이브코딩으로 개발된 프로젝트</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="grid-column: 1 / -1">
                 <label>기간</label>
-                <input v-model="projectForm.period" placeholder="2024.01 ~ 2024.06 (6개월)" />
+                <div class="date-range-row">
+                  <input type="month" v-model="projectForm.startDate" class="month-input" />
+                  <span class="date-sep">~</span>
+                  <input type="month" v-model="projectForm.endDate" class="month-input"
+                    :disabled="projectForm.ongoing" />
+                  <label class="current-check">
+                    <input type="checkbox" v-model="projectForm.ongoing" />
+                    진행 중
+                  </label>
+                </div>
+                <div v-if="projectDuration" class="duration-badge">{{ projectDuration }}</div>
               </div>
             </div>
             <div class="form-group">
@@ -1220,6 +1257,86 @@ onMounted(fetchProjects)
   color: #6366f1;
   font-size: 0.95rem;
   font-weight: 700;
+}
+
+/* ── 바이브코딩 체크 ── */
+.vibe-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.vibe-check:hover { border-color: #8b5cf6; }
+.vibe-check input[type=checkbox] {
+  width: 15px !important;
+  height: 15px !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #8b5cf6;
+}
+.vibe-check span { font-size: 0.88rem; color: #94a3b8; }
+
+/* ── 날짜 범위 picker ── */
+.date-range-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.month-input {
+  flex: 1;
+  min-width: 130px;
+  padding: 0.65rem 0.9rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.month-input:focus { border-color: #6366f1; }
+.month-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.date-sep { color: #64748b; font-size: 0.9rem; flex-shrink: 0; }
+.current-check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.current-check input[type=checkbox] {
+  width: 15px !important;
+  height: 15px !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.duration-badge {
+  display: inline-block;
+  margin-top: 0.45rem;
+  padding: 0.2rem 0.7rem;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6366f1;
 }
 .image-add-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .image-add-row .url-input { min-width: 0; flex: 1; }
