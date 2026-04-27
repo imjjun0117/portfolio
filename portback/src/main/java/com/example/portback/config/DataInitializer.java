@@ -31,70 +31,34 @@ public class DataInitializer implements CommandLineRunner {
     private void seedProjects() {
         if (projectRepository.count() > 0) return;
 
-        Project project1 = Project.builder()
-                .title("스마트 팩토리 통합 관제 시스템")
-                .description("IoT 센서 데이터를 실시간으로 수집하여 공정 효율을 분석하고 가동 중단을 예측하는 대시보드 시스템입니다.")
-                .period("2023.08 ~ 2023.12 (5개월)")
-                .longDescription("전국 단위 제조업 공장의 스마트화를 위한 통합 관제 플랫폼입니다. 수만 개의 센서로부터 초당 발생하는 시계열 데이터를 실시간 처리하여 공정 분석 알고리즘에 대입합니다. 가동 중단 시 막대한 비용이 발생하는 공정의 가동률을 예측하여 예방 정비를 지원하는 핵심 시스템으로 개발되었습니다.")
-                .skills(Arrays.asList("Java", "Spring Boot", "InfluxDB", "React", "WebSocket"))
-                .roles(Arrays.asList("백엔드 API 설계 및 구현", "실시간 데이터 스트리밍 처리", "공정 분석 알고리즘 최적화"))
-                .github("https://github.com/example/smart-factory")
-                .thumbnail("https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80")
-                .images(Arrays.asList(
-                        "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1558494949-ef010cbdcc48?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200"
+        Project portfolio = Project.builder()
+                .title("개인 포트폴리오 웹사이트")
+                .description("Spring Boot + Vue.js + Docker 풀스택으로 직접 설계·개발한 포트폴리오 사이트입니다.")
+                .period("2026.04 ~ 현재")
+                .longDescription("단순한 정적 페이지 대신, 실제 운영 가능한 풀스택 구조로 직접 설계·개발한 포트폴리오입니다.\n\n" +
+                        "Spring Boot 백엔드와 Vue.js 프론트엔드를 Docker Compose로 오케스트레이션하고, Nginx를 리버스 프록시로 두어 SPA 라우팅과 API 프록시를 처리합니다. " +
+                        "관리자 페이지에서 JWT 인증을 통해 프로젝트·경력·기술스택·사이트 설정을 모두 관리할 수 있으며, 이미지 파일은 Docker 볼륨에 저장됩니다.\n\n" +
+                        "콘텐츠를 코드 수정 없이 대시보드에서 직접 편집할 수 있도록 SiteConfig 엔티티를 key-value 구조로 설계하여 배포 후에도 유연하게 운영할 수 있습니다.")
+                .skills(Arrays.asList("Java", "Spring Boot", "Vue.js", "PostgreSQL", "Docker", "Nginx", "JWT"))
+                .roles(Arrays.asList(
+                        "Spring Boot REST API 설계 및 구현",
+                        "Vue.js SPA 프론트엔드 개발",
+                        "JWT 기반 관리자 인증 구현",
+                        "Docker Compose 멀티 서비스 인프라 구성",
+                        "관리자 대시보드 (CRUD + 파일 업로드) 개발"
                 ))
+                .github("https://github.com/imjjun0117/portfolio")
+                .thumbnail("")
+                .images(Arrays.asList())
+                .vibeCoding(true)
                 .problemSolving(ProblemSolving.builder()
-                        .problem("수만 개의 센서에서 초당 발생하는 데이터를 처리할 때 DB 병목 현상 발생")
-                        .solution("InfluxDB(시계열 DB)와 Redis 캐싱 레이어 도입으로 저장 및 조회 속도 개선")
-                        .result("전체 시스템 응답 속도 40% 향상 및 대역폭 효율화 성공")
+                        .problem("콘텐츠 수정 때마다 코드 배포가 필요한 정적 포트폴리오 구조")
+                        .solution("SiteConfig key-value 엔티티로 DB 기반 콘텐츠 관리 + 관리자 대시보드 구현")
+                        .result("배포 없이 브라우저에서 모든 콘텐츠를 실시간으로 수정·반영 가능")
                         .build())
                 .build();
 
-        Project project2 = Project.builder()
-                .title("차세대 인사/급여 자동화 플랫폼")
-                .description("복잡한 인사 관리 및 급여 계산 로직을 자동화하고 연말정산 프로세스를 지원하는 기업용 SaaS입니다.")
-                .period("2024.01 ~ 2024.04 (4개월)")
-                .longDescription("대규모 기업의 인사 행정 및 급여 정산 업무를 디지털로 전환하는 프로젝트입니다. 수동으로 처리되던 복잡한 급여 산정 로직을 자동화하고, 개정된 세법을 즉시 반영할 수 있는 구조로 리팩토링하였습니다. 특히 연말정산 처리 효율을 극대화하기 위해 배치 엔진을 최적화한 실무용 SaaS 플랫폼입니다.")
-                .skills(Arrays.asList("Java", "Spring Boot", "PostgreSQL", "Vue.js", "Docker"))
-                .roles(Arrays.asList("인사 관리 모듈 리팩토링", "급여 정산 비즈니스 로직 최적화", "도커 기반 배포 파이프라인 구축"))
-                .github(null)
-                .thumbnail("https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80")
-                .images(Arrays.asList(
-                        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1454165833267-028ec280650d?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200"
-                ))
-                .problemSolving(ProblemSolving.builder()
-                        .problem("기존 레거시 시스템의 급여 계산 로직이 복잡하여 정산 시간이 10분 이상 소요됨")
-                        .solution("함수형 프로그래밍과 병렬 스트림 처리를 도입하여 정산 로직 최적화")
-                        .result("정산 시간 10분에서 30초 내외로 단축 (약 95% 개선)")
-                        .build())
-                .build();
-
-        Project project3 = Project.builder()
-                .title("AI 기반 이커머스 매출 분석 대시보드")
-                .description("판매 데이터를 기반으로 미래 매출을 예측하고 카테고리별 추천 상품을 제안하는 분석 솔루션입니다.")
-                .period("2023.05 ~ 2023.07 (3개월)")
-                .longDescription("이커머스 운영자가 데이터를 기반으로 의사결정을 내릴 수 있도록 돕는 인공지능 분석 도구입니다. 과거 매출 패턴을 시계열 분석 모델로 학습시켜 다음 달 매출액을 예측하고, 고객 구매 패턴을 분석하여 마케팅 집중 카테고리를 추천합니다. 모든 분석 결과는 고해상도 차트로 시각화되어 제공됩니다.")
-                .skills(Arrays.asList("Python", "FastAPI", "TensorFlow", "Vue.js", "MySQL"))
-                .roles(Arrays.asList("데이터 전처리 파이프라인 구축", "예측 모델 결과 시각화 모듈 개발", "REST API 통합"))
-                .github("https://github.com/example/sales-ai")
-                .thumbnail("https://images.unsplash.com/photo-1551288049-bbbda536339a?auto=format&fit=crop&w=800&q=80")
-                .images(Arrays.asList(
-                        "https://images.unsplash.com/photo-1551288049-bbbda536339a?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200",
-                        "https://images.unsplash.com/photo-1504868584819-f8eec4b6d730?auto=format&fit=crop&w=1200"
-                ))
-                .problemSolving(ProblemSolving.builder()
-                        .problem("머신러닝 예측 모델의 추론 시간이 길어 실시간 시각화가 어려움")
-                        .solution("모델 경량화 및 비동기 작업 큐(Celery)를 활용한 작업 분산")
-                        .result("사용자 체감 대기 시간 최소화 및 안정적인 차트 렌더링 구현")
-                        .build())
-                .build();
-
-        projectRepository.saveAll(Arrays.asList(project1, project2, project3));
+        projectRepository.save(portfolio);
     }
 
     private void seedExperiences() {
