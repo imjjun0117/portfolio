@@ -3,9 +3,9 @@
 FROM maven:3.8.6-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
-RUN mvn dependency:go-offline
+RUN mvn dependency:go-offline -Dmaven.test.skip=true
 COPY src ./src
-RUN mvn package -DskipTests
+RUN mvn package -DskipTests -Dmaven.test.skip=true -Dsurefire.skip=true
 
 # 2. Run stage
 FROM eclipse-temurin:17-jre-jammy

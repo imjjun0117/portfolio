@@ -16,8 +16,8 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @GetMapping
-    public List<Project> getAllProjects() {
-        return projectService.getAllProjects();
+    public List<Project> getAllProjects(@RequestParam(defaultValue = "false") boolean all) {
+        return projectService.getAllProjects(all);
     }
 
     @GetMapping("/{id}")

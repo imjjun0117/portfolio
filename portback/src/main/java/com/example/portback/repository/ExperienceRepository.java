@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ExperienceRepository extends JpaRepository<Experience, Long> {
     List<Experience> findAllByOrderByDisplayOrderAsc();
+    List<Experience> findAllByHiddenFalseOrderByDisplayOrderAsc();
 }

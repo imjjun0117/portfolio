@@ -17,8 +17,9 @@ import java.util.Optional;
 public class ProjectService {
     private final ProjectRepository projectRepository;
 
-    public List<Project> getAllProjects() {
-        return projectRepository.findAll();
+    public List<Project> getAllProjects(boolean all) {
+        if (all) return projectRepository.findAll();
+        return projectRepository.findAllByHiddenFalse();
     }
 
     public Optional<Project> getProjectById(Long id) {
@@ -38,6 +39,7 @@ public class ProjectService {
                 .roles(request.getRoles())
                 .images(request.getImages())
                 .vibeCoding(request.isVibeCoding())
+                .hidden(request.isHidden())
                 .problemSolving(ProblemSolving.builder()
                         .problem(request.getProblem())
                         .solution(request.getSolution())
@@ -60,6 +62,7 @@ public class ProjectService {
             project.setRoles(request.getRoles());
             project.setImages(request.getImages());
             project.setVibeCoding(request.isVibeCoding());
+            project.setHidden(request.isHidden());
 
             ProblemSolving ps = project.getProblemSolving();
             if (ps == null) {

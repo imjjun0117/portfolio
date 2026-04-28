@@ -16,4 +16,5 @@ public class ExperienceRequest {
     private List<String> tags;
     private boolean current;
     private int displayOrder;
+    private boolean hidden;
 }

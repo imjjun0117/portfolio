@@ -15,7 +15,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="experience">
+  <section v-if="experiences.length > 0" class="experience">
     <div class="container">
       <div class="section-header fade-in">
         <h2 class="section-title">Experience</h2>

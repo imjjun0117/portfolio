@@ -63,7 +63,7 @@ const projectModalTitle = computed(() => editingProjectId.value ? '프로젝트 
 const fetchProjects = async () => {
   projectsLoading.value = true
   try {
-    const res = await axios.get('/api/projects')
+    const res = await axios.get('/api/projects?all=true')
     projects.value = res.data
   } catch { showToast('데이터를 불러오지 못했습니다.', 'error') }
   finally { projectsLoading.value = false }
@@ -158,6 +158,18 @@ const saveProject = async () => {
   } finally { saveProjectLoading.value = false }
 }
 
+const toggleProjectHidden = async (project) => {
+  try {
+    await axios.put(`/api/projects/${project.id}`, { ...project,
+      skills: project.skills, roles: project.roles, images: project.images,
+      problem: project.problemSolving?.problem, solution: project.problemSolving?.solution,
+      result: project.problemSolving?.result, hidden: !project.hidden
+    }, authHeaders())
+    await fetchProjects()
+    showToast(project.hidden ? '공개로 변경되었습니다.' : '숨김 처리되었습니다.')
+  } catch { showToast('변경에 실패했습니다.', 'error') }
+}
+
 const deleteProject = async () => {
   try {
     await axios.delete(`/api/projects/${deleteProjectConfirmId.value}`, authHeaders())
@@ -219,7 +231,7 @@ const deleteExpConfirmId = ref(null)
 
 const emptyExpForm = () => ({
   company: '', startDate: '', endDate: '', role: '', type: '',
-  description: '', tags: '', current: false, displayOrder: 0
+  description: '', tags: '', current: false, displayOrder: 0, hidden: false
 })
 const expForm = ref(emptyExpForm())
 const expModalTitle = computed(() => editingExpId.value ? '경력 수정' : '경력 추가')
@@ -236,7 +248,7 @@ watch(() => expForm.value.current, (val) => {
 
 const fetchExperiences = async () => {
   expLoading.value = true
-  try { const res = await axios.get('/api/experiences'); experiences.value = res.data }
+  try { const res = await axios.get('/api/experiences?all=true'); experiences.value = res.data }
   catch { showToast('경력 데이터를 불러오지 못했습니다.', 'error') }
   finally { expLoading.value = false }
 }
@@ -254,7 +266,8 @@ const openEditExp = (exp) => {
     startDate: parseToInputMonth(parts[0] || ''),
     endDate: parseToInputMonth(parts[1] || ''),
     role: exp.role || '', type: exp.type || '', description: exp.description || '',
-    tags: (exp.tags || []).join(', '), current: exp.current || false, displayOrder: exp.displayOrder || 0
+    tags: (exp.tags || []).join(', '), current: exp.current || false, displayOrder: exp.displayOrder || 0,
+    hidden: exp.hidden || false
   }
   showExpModal.value = true
 }
@@ -271,7 +284,8 @@ const saveExp = async () => {
       company: expForm.value.company, period, duration,
       role: expForm.value.role, type: expForm.value.type, description: expForm.value.description,
       tags: expForm.value.tags.split(',').map(s => s.trim()).filter(Boolean),
-      current: expForm.value.current, displayOrder: Number(expForm.value.displayOrder)
+      current: expForm.value.current, displayOrder: Number(expForm.value.displayOrder),
+      hidden: expForm.value.hidden
     }
     if (editingExpId.value) {
       await axios.put(`/api/experiences/${editingExpId.value}`, payload, authHeaders())
@@ -285,6 +299,16 @@ const saveExp = async () => {
     if (e.response?.status === 401) handleUnauthorized()
     else showToast('저장에 실패했습니다.', 'error')
   } finally { saveExpLoading.value = false }
+}
+
+const toggleExpHidden = async (exp) => {
+  try {
+    await axios.put(`/api/experiences/${exp.id}`, { ...exp,
+      tags: exp.tags, hidden: !exp.hidden
+    }, authHeaders())
+    await fetchExperiences()
+    showToast(exp.hidden ? '공개로 변경되었습니다.' : '숨김 처리되었습니다.')
+  } catch { showToast('변경에 실패했습니다.', 'error') }
 }
 
 const deleteExp = async () => {
@@ -470,7 +494,7 @@ onMounted(fetchProjects)
 
         <div v-if="projectsLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
         <div v-else class="project-grid">
-          <div v-for="project in projects" :key="project.id" class="project-card">
+          <div v-for="project in projects" :key="project.id" class="project-card" :class="{ 'card-hidden': project.hidden }">
             <div class="card-thumb">
               <img v-if="project.thumbnail" :src="project.thumbnail" :alt="project.title"
                 @error="e => e.target.style.display='none'" />
@@ -489,6 +513,9 @@ onMounted(fetchProjects)
               </div>
             </div>
             <div class="card-actions">
+              <button @click="toggleProjectHidden(project)" class="btn btn-sm" :class="project.hidden ? 'btn-warning' : 'btn-outline'">
+                {{ project.hidden ? '숨김 해제' : '숨김' }}
+              </button>
               <button @click="openEditProject(project)" class="btn btn-sm btn-outline">수정</button>
               <button @click="deleteProjectConfirmId = project.id" class="btn btn-sm btn-danger">삭제</button>
             </div>
@@ -512,7 +539,7 @@ onMounted(fetchProjects)
 
         <div v-if="expLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
         <div v-else class="list-stack">
-          <div v-for="exp in experiences" :key="exp.id" class="list-card">
+          <div v-for="exp in experiences" :key="exp.id" class="list-card" :class="{ 'card-hidden': exp.hidden }">
             <div class="list-card-body">
               <div class="list-card-top">
                 <div>
@@ -533,6 +560,9 @@ onMounted(fetchProjects)
               </div>
             </div>
             <div class="card-actions">
+              <button @click="toggleExpHidden(exp)" class="btn btn-sm" :class="exp.hidden ? 'btn-warning' : 'btn-outline'">
+                {{ exp.hidden ? '숨김 해제' : '숨김' }}
+              </button>
               <button @click="openEditExp(exp)" class="btn btn-sm btn-outline">수정</button>
               <button @click="deleteExpConfirmId = exp.id" class="btn btn-sm btn-danger">삭제</button>
             </div>
@@ -1164,6 +1194,9 @@ onMounted(fetchProjects)
 .btn-ghost:hover { color: #f1f5f9; }
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-danger:hover { background: #dc2626; }
+.btn-warning { background: #f59e0b; color: #fff; }
+.btn-warning:hover { background: #d97706; }
+.card-hidden { opacity: 0.45; border-style: dashed !important; }
 .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.82rem; }
 
 /* ── 모달 ── */

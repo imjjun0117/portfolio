@@ -17,8 +17,9 @@ public class ExperienceController {
     private final ExperienceRepository experienceRepository;
 
     @GetMapping
-    public List<Experience> getAll() {
-        return experienceRepository.findAllByOrderByDisplayOrderAsc();
+    public List<Experience> getAll(@RequestParam(defaultValue = "false") boolean all) {
+        if (all) return experienceRepository.findAllByOrderByDisplayOrderAsc();
+        return experienceRepository.findAllByHiddenFalseOrderByDisplayOrderAsc();
     }
 
     @PostMapping
@@ -33,6 +34,7 @@ public class ExperienceController {
                 .tags(req.getTags())
                 .current(req.isCurrent())
                 .displayOrder(req.getDisplayOrder())
+                .hidden(req.isHidden())
                 .build();
         return ResponseEntity.ok(experienceRepository.save(exp));
     }
@@ -49,6 +51,7 @@ public class ExperienceController {
             exp.setTags(req.getTags());
             exp.setCurrent(req.isCurrent());
             exp.setDisplayOrder(req.getDisplayOrder());
+            exp.setHidden(req.isHidden());
             return ResponseEntity.ok(experienceRepository.save(exp));
         }).orElse(ResponseEntity.notFound().build());
     }

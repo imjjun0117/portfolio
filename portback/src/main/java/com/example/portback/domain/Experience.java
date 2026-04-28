@@ -31,4 +31,7 @@ public class Experience {
 
     private boolean current;
     private int displayOrder;
+
+    @Column(columnDefinition = "boolean not null default false")
+    private boolean hidden;
 }

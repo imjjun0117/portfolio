@@ -48,4 +48,7 @@ public class Project {
 
     @Column(columnDefinition = "boolean not null default false")
     private boolean vibeCoding;
+
+    @Column(columnDefinition = "boolean not null default false")
+    private boolean hidden;
 }

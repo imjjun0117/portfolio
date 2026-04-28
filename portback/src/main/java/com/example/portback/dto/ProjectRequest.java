@@ -21,4 +21,5 @@ public class ProjectRequest {
     private String solution;
     private String result;
     private boolean vibeCoding;
+    private boolean hidden;
 }

@@ -21,7 +21,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="projects">
+  <section v-if="!isLoading && projects.length > 0" class="projects">
     <div class="container">
       <div class="section-header fade-in">
         <h2 class="section-title">Projects</h2>
