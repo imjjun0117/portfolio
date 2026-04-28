@@ -18,7 +18,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins(
                         "http://localhost:5173",  // Vite dev server
                         "http://localhost:80",     // Docker nginx
-                        "http://localhost"         // Docker nginx (no port)
+                        "http://localhost",        // Docker nginx (no port)
+                        "https://imjjun0117.duckdns.org"  // EC2 production
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
