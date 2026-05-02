@@ -11,19 +11,28 @@ onMounted(() => {
   document.documentElement.setAttribute('data-theme', 'dark')
 
   // 스크롤 페이드인 애니메이션
-  const observer = new IntersectionObserver(
+  const io = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add('visible')
-          observer.unobserve(entry.target)
+          io.unobserve(entry.target)
         }
       })
     },
     { threshold: 0.12 }
   )
 
-  document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el))
+  const observeNew = () => {
+    document.querySelectorAll('.fade-in:not(.visible)').forEach((el) => io.observe(el))
+  }
+
+  // 초기 등록
+  observeNew()
+
+  // 데이터 로드 후 동적으로 추가된 .fade-in 요소도 감지
+  const mo = new MutationObserver(observeNew)
+  mo.observe(document.body, { childList: true, subtree: true })
 })
 </script>
 
