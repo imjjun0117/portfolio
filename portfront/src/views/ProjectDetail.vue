@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import ScreenList from '@/components/project/ScreenList.vue'
@@ -14,8 +14,22 @@ const loading = ref(true)
 const notFound = ref(false)
 const selectedScreenIndex = ref(0)
 
+const totalScreens = computed(() => project.value?.screens?.length ?? 0)
+const hasPrev = computed(() => selectedScreenIndex.value > 0)
+const hasNext = computed(() => selectedScreenIndex.value < totalScreens.value - 1)
+
+const prev = () => { if (hasPrev.value) selectedScreenIndex.value-- }
+const next = () => { if (hasNext.value) selectedScreenIndex.value++ }
+
+const onKeydown = (e) => {
+  if (totalScreens.value === 0) return
+  if (e.key === 'ArrowLeft') prev()
+  if (e.key === 'ArrowRight') next()
+}
+
 onMounted(async () => {
   document.documentElement.setAttribute('data-theme', 'dark')
+  window.addEventListener('keydown', onKeydown)
   try {
     const res = await axios.get(`/api/projects/${route.params.id}`)
     project.value = res.data
@@ -24,6 +38,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 
 const goBack = () => {
@@ -67,23 +85,27 @@ const selectScreen = (i) => {
          스크린 뷰어 레이아웃 (screens 있을 때)
     ══════════════════════════════════════════ -->
     <template v-else-if="project && project.screens && project.screens.length > 0">
-      <!-- 프로젝트 메타 바 -->
+      <!-- 프로젝트 개요 바 -->
       <div class="meta-bar">
-        <div class="meta-bar-left">
-          <span v-if="project.vibeCoding" class="vibe-badge">⚡ Vibe Coding</span>
-          <h1 class="meta-title">{{ project.title }}</h1>
-          <span class="meta-period">{{ project.period }}</span>
-        </div>
-        <div class="meta-bar-right">
+        <!-- 1행: 제목 + 뱃지 + GitHub -->
+        <div class="meta-row1">
+          <div class="meta-row1-left">
+            <span v-if="project.vibeCoding" class="vibe-badge">⚡ Vibe Coding</span>
+            <h1 class="meta-title">{{ project.title }}</h1>
+            <span class="meta-period">{{ project.period }}</span>
+          </div>
           <a v-if="project.github" :href="project.github" target="_blank" class="github-link">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
             </svg>
             GitHub
           </a>
+        </div>
+        <!-- 2행: 한줄 설명 + 기술스택 -->
+        <div class="meta-row2">
+          <p v-if="project.description" class="meta-desc">{{ project.description }}</p>
           <div class="meta-skills">
-            <span v-for="skill in (project.skills || []).slice(0, 5)" :key="skill" class="skill-tag">{{ skill }}</span>
-            <span v-if="(project.skills || []).length > 5" class="skill-more">+{{ project.skills.length - 5 }}</span>
+            <span v-for="skill in (project.skills || [])" :key="skill" class="skill-tag">{{ skill }}</span>
           </div>
         </div>
       </div>
@@ -95,7 +117,31 @@ const selectScreen = (i) => {
           :selected-index="selectedScreenIndex"
           @select="selectScreen"
         />
-        <ScreenViewer :screen="project.screens[selectedScreenIndex]" />
+
+        <!-- 뷰어 + 화살표 버튼 -->
+        <div class="viewer-center">
+          <ScreenViewer :screen="project.screens[selectedScreenIndex]" />
+          <button v-if="hasPrev" class="nav-arrow nav-arrow-left" @click="prev">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15,18 9,12 15,6"/>
+            </svg>
+          </button>
+          <button v-if="hasNext" class="nav-arrow nav-arrow-right" @click="next">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9,18 15,12 9,6"/>
+            </svg>
+          </button>
+          <!-- 하단 페이지 도트 -->
+          <div class="nav-dots">
+            <button
+              v-for="(_, i) in project.screens"
+              :key="i"
+              :class="['nav-dot', { active: selectedScreenIndex === i }]"
+              @click="selectScreen(i)"
+            />
+          </div>
+        </div>
+
         <DescriptionPanel
           :screen="project.screens[selectedScreenIndex]"
           :screen-index="selectedScreenIndex"
@@ -310,23 +356,29 @@ const selectScreen = (i) => {
   z-index: 99;
   background: #0d1b2e;
   border-bottom: 1px solid #1e2d4a;
+  padding: 0.6rem 1.5rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* 1행 */
+.meta-row1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 1.5rem;
   gap: 1rem;
 }
 
-.meta-bar-left {
+.meta-row1-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   min-width: 0;
 }
 
 .meta-title {
-  font-size: 0.95rem;
+  font-size: 0.97rem;
   font-weight: 800;
   color: #f1f5f9;
   white-space: nowrap;
@@ -335,27 +387,20 @@ const selectScreen = (i) => {
 }
 
 .meta-period {
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 600;
   color: #60a5fa;
   flex-shrink: 0;
 }
 
 .vibe-badge {
-  font-size: 0.65rem;
+  font-size: 0.63rem;
   font-weight: 700;
   color: #a78bfa;
   background: rgba(139, 92, 246, 0.12);
   border: 1px solid rgba(139, 92, 246, 0.3);
-  padding: 0.15rem 0.55rem;
+  padding: 0.12rem 0.5rem;
   border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.meta-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   flex-shrink: 0;
 }
 
@@ -363,11 +408,11 @@ const selectScreen = (i) => {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #64748b;
   border: 1px solid #1e2d4a;
-  padding: 0.2rem 0.65rem;
+  padding: 0.18rem 0.65rem;
   border-radius: 999px;
   text-decoration: none;
   transition: all 0.2s;
@@ -376,34 +421,118 @@ const selectScreen = (i) => {
 
 .github-link:hover { color: #f1f5f9; border-color: #60a5fa; }
 
+/* 2행 */
+.meta-row2 {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.meta-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .meta-skills {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0.3rem;
+  flex-shrink: 0;
+  overflow-x: auto;
 }
 
 .skill-tag {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  padding: 0.15rem 0.5rem;
+  padding: 0.12rem 0.5rem;
   border-radius: 5px;
   background: rgba(96, 165, 250, 0.08);
   color: #60a5fa;
   border: 1px solid rgba(96, 165, 250, 0.18);
-}
-
-.skill-more {
-  font-size: 0.68rem;
-  color: #475569;
-  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* 3패널 뷰어 */
 .viewer-wrap {
   display: flex;
-  height: calc(100vh - 56px - 48px); /* header(56) + meta-bar(48) */
-  margin-top: calc(56px + 48px);
+  height: calc(100vh - 56px - 76px); /* header(56) + meta-bar(76) */
+  margin-top: calc(56px + 76px);
   overflow: hidden;
+}
+
+.viewer-center {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+/* 화살표 버튼 */
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  z-index: 10;
+  backdrop-filter: blur(6px);
+}
+
+.nav-arrow:hover {
+  background: rgba(96, 165, 250, 0.25);
+  border-color: rgba(96, 165, 250, 0.5);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.nav-arrow-left { left: 1rem; }
+.nav-arrow-right { right: 1rem; }
+
+/* 하단 도트 */
+.nav-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  z-index: 10;
+}
+
+.nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  padding: 0;
+}
+
+.nav-dot.active {
+  background: #60a5fa;
+  transform: scale(1.3);
+}
+
+.nav-dot:hover {
+  background: rgba(96, 165, 250, 0.6);
 }
 
 /* ══════════════════════════════════════
@@ -719,6 +848,7 @@ const selectScreen = (i) => {
   :deep(.screen-item-info) { align-items: center; }
 
   /* 뷰어: 16:9 박스 */
+  .viewer-center { min-height: 220px; }
   :deep(.screen-viewer) { min-height: 220px; }
 
   /* 설명 패널: 전폭 */
@@ -729,8 +859,8 @@ const selectScreen = (i) => {
     padding: 1.25rem 1rem;
   }
 
-  .meta-bar { flex-wrap: wrap; }
-  .meta-bar-right { display: none; }
+  .meta-row2 { display: none; }
+  .meta-desc { display: none; }
 }
 
 @media (max-width: 720px) {
