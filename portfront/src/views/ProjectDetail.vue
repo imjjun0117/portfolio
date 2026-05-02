@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import ScreenList from '@/components/project/ScreenList.vue'
+import ScreenViewer from '@/components/project/ScreenViewer.vue'
+import DescriptionPanel from '@/components/project/DescriptionPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -9,6 +12,7 @@ const router = useRouter()
 const project = ref(null)
 const loading = ref(true)
 const notFound = ref(false)
+const selectedScreenIndex = ref(0)
 
 onMounted(async () => {
   document.documentElement.setAttribute('data-theme', 'dark')
@@ -25,6 +29,10 @@ onMounted(async () => {
 const goBack = () => {
   if (window.history.length > 1) router.back()
   else router.push('/')
+}
+
+const selectScreen = (i) => {
+  selectedScreenIndex.value = i
 }
 </script>
 
@@ -55,7 +63,50 @@ const goBack = () => {
       <button @click="goBack" class="btn-outline">돌아가기</button>
     </div>
 
-    <!-- 본문 -->
+    <!-- ══════════════════════════════════════
+         스크린 뷰어 레이아웃 (screens 있을 때)
+    ══════════════════════════════════════════ -->
+    <template v-else-if="project && project.screens && project.screens.length > 0">
+      <!-- 프로젝트 메타 바 -->
+      <div class="meta-bar">
+        <div class="meta-bar-left">
+          <span v-if="project.vibeCoding" class="vibe-badge">⚡ Vibe Coding</span>
+          <h1 class="meta-title">{{ project.title }}</h1>
+          <span class="meta-period">{{ project.period }}</span>
+        </div>
+        <div class="meta-bar-right">
+          <a v-if="project.github" :href="project.github" target="_blank" class="github-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            GitHub
+          </a>
+          <div class="meta-skills">
+            <span v-for="skill in (project.skills || []).slice(0, 5)" :key="skill" class="skill-tag">{{ skill }}</span>
+            <span v-if="(project.skills || []).length > 5" class="skill-more">+{{ project.skills.length - 5 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3패널 뷰어 -->
+      <div class="viewer-wrap">
+        <ScreenList
+          :screens="project.screens"
+          :selected-index="selectedScreenIndex"
+          @select="selectScreen"
+        />
+        <ScreenViewer :screen="project.screens[selectedScreenIndex]" />
+        <DescriptionPanel
+          :screen="project.screens[selectedScreenIndex]"
+          :screen-index="selectedScreenIndex"
+          :total="project.screens.length"
+        />
+      </div>
+    </template>
+
+    <!-- ══════════════════════════════════════
+         기존 레이아웃 폴백 (screens 없을 때)
+    ══════════════════════════════════════════ -->
     <main v-else-if="project" class="detail-main">
 
       <!-- 히어로 이미지 -->
@@ -77,8 +128,8 @@ const goBack = () => {
         <section class="title-block">
           <div class="title-meta">
             <span class="period-badge">{{ project.period }}</span>
-            <span v-if="project.vibeCoding" class="vibe-badge">⚡ Vibe Coding</span>
-            <a v-if="project.github" :href="project.github" target="_blank" class="github-link">
+            <span v-if="project.vibeCoding" class="vibe-badge-legacy">⚡ Vibe Coding</span>
+            <a v-if="project.github" :href="project.github" target="_blank" class="github-link-legacy">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
               </svg>
@@ -181,16 +232,15 @@ const goBack = () => {
   left: 0;
   width: 100%;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(10, 22, 40, 0.92);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #1e2d4a;
 }
 
 .detail-header-inner {
-  max-width: 860px;
-  margin: 0 auto;
+  max-width: 100%;
   padding: 0 1.5rem;
-  height: 60px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -202,7 +252,7 @@ const goBack = () => {
   gap: 0.4rem;
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #64748b;
   background: none;
   border: none;
   cursor: pointer;
@@ -213,18 +263,18 @@ const goBack = () => {
 }
 
 .back-btn:hover {
-  color: var(--text-color);
+  color: #f1f5f9;
   background: rgba(255, 255, 255, 0.06);
 }
 
 .site-logo {
   font-size: 1rem;
   font-weight: 800;
-  color: var(--text-color);
+  color: #f1f5f9;
   text-decoration: none;
 }
 
-/* ── 상태 ── */
+/* ── 상태 박스 ── */
 .state-box {
   display: flex;
   flex-direction: column;
@@ -234,25 +284,138 @@ const goBack = () => {
   gap: 1.5rem;
 }
 
-.state-text { color: var(--text-secondary); font-size: 1rem; }
+.state-text { color: #64748b; font-size: 1rem; }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--accent-color);
+  border: 3px solid #1e2d4a;
+  border-top-color: #60a5fa;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── 히어로 이미지 ── */
+/* ══════════════════════════════════════
+   스크린 뷰어 레이아웃
+══════════════════════════════════════ */
+
+/* 메타 바 */
+.meta-bar {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  background: #0d1b2e;
+  border-bottom: 1px solid #1e2d4a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 1.5rem;
+  gap: 1rem;
+}
+
+.meta-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.meta-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-period {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.vibe-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.meta-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  border: 1px solid #1e2d4a;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.github-link:hover { color: #f1f5f9; border-color: #60a5fa; }
+
+.meta-skills {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.skill-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 5px;
+  background: rgba(96, 165, 250, 0.08);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+.skill-more {
+  font-size: 0.68rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* 3패널 뷰어 */
+.viewer-wrap {
+  display: flex;
+  height: calc(100vh - 56px - 48px); /* header(56) + meta-bar(48) */
+  margin-top: calc(56px + 48px);
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════
+   레거시 레이아웃 (screens 없을 때)
+══════════════════════════════════════ */
+
+/* 히어로 이미지 */
 .hero-img-wrap {
   position: relative;
   width: 100%;
   height: 380px;
-  margin-top: 60px;
+  margin-top: 56px;
   overflow: hidden;
   background: #0a1628;
 }
@@ -280,14 +443,14 @@ const goBack = () => {
   background: linear-gradient(to bottom, transparent 40%, var(--bg-color) 100%);
 }
 
-/* ── 본문 ── */
+/* 본문 */
 .content-wrap {
   max-width: 860px;
   margin: 0 auto;
   padding: 0 1.5rem 6rem;
 }
 
-/* ── 타이틀 블록 ── */
+/* 타이틀 블록 */
 .title-block {
   padding-top: 2rem;
   margin-bottom: 2.5rem;
@@ -310,7 +473,7 @@ const goBack = () => {
   border-radius: 999px;
 }
 
-.vibe-badge {
+.vibe-badge-legacy {
   font-size: 0.75rem;
   font-weight: 700;
   color: #a78bfa;
@@ -321,7 +484,7 @@ const goBack = () => {
   letter-spacing: 0.03em;
 }
 
-.github-link {
+.github-link-legacy {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -335,10 +498,7 @@ const goBack = () => {
   transition: all 0.2s;
 }
 
-.github-link:hover {
-  color: var(--text-color);
-  border-color: var(--accent-color);
-}
+.github-link-legacy:hover { color: var(--text-color); border-color: var(--accent-color); }
 
 .project-title {
   font-size: 2.2rem;
@@ -354,14 +514,14 @@ const goBack = () => {
   line-height: 1.75;
 }
 
-/* ── 구분선 ── */
+/* 구분선 */
 .divider {
   height: 1px;
   background: var(--border-color);
   margin: 2.5rem 0;
 }
 
-/* ── 2단 (기술스택 / 역할) ── */
+/* 2단 */
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -414,9 +574,7 @@ const goBack = () => {
   color: var(--accent-color);
 }
 
-/* ── 상세 설명 ── */
-.desc-block { }
-
+/* 상세 설명 */
 .desc-text {
   font-size: 0.97rem;
   color: var(--text-secondary);
@@ -424,7 +582,7 @@ const goBack = () => {
   white-space: pre-line;
 }
 
-/* ── 문제 해결 ── */
+/* 문제 해결 */
 .ps-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -437,20 +595,9 @@ const goBack = () => {
   border: 1px solid;
 }
 
-.ps-problem {
-  background: rgba(239, 68, 68, 0.05);
-  border-color: rgba(239, 68, 68, 0.2);
-}
-
-.ps-solution {
-  background: rgba(96, 165, 250, 0.05);
-  border-color: rgba(96, 165, 250, 0.2);
-}
-
-.ps-result {
-  background: rgba(16, 185, 129, 0.05);
-  border-color: rgba(16, 185, 129, 0.2);
-}
+.ps-problem { background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); }
+.ps-solution { background: rgba(96, 165, 250, 0.05); border-color: rgba(96, 165, 250, 0.2); }
+.ps-result { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); }
 
 .ps-label {
   font-size: 0.68rem;
@@ -470,7 +617,7 @@ const goBack = () => {
   line-height: 1.65;
 }
 
-/* ── 갤러리 ── */
+/* 갤러리 */
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -492,11 +639,9 @@ const goBack = () => {
   transition: transform 0.35s ease;
 }
 
-.gallery-item:hover img {
-  transform: scale(1.03);
-}
+.gallery-item:hover img { transform: scale(1.03); }
 
-/* ── 하단 버튼 ── */
+/* 하단 버튼 */
 .bottom-nav {
   margin-top: 4rem;
   display: flex;
@@ -519,10 +664,7 @@ const goBack = () => {
   font-family: inherit;
 }
 
-.btn-back-bottom:hover {
-  color: var(--text-color);
-  border-color: var(--accent-color);
-}
+.btn-back-bottom:hover { color: var(--text-color); border-color: var(--accent-color); }
 
 .btn-outline {
   padding: 0.65rem 1.4rem;
@@ -540,6 +682,57 @@ const goBack = () => {
 .btn-outline:hover { border-color: var(--accent-color); color: var(--text-color); }
 
 /* ── 반응형 ── */
+@media (max-width: 900px) {
+  .viewer-wrap {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* 스크린 리스트: 가로 스크롤 */
+  :deep(.screen-list) {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #1e2d4a;
+    flex-direction: column;
+  }
+  :deep(.screen-items) {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  :deep(.screen-item) {
+    flex-direction: column;
+    width: 88px;
+    padding: 0.5rem;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+  }
+  :deep(.screen-item.active) {
+    border-bottom-color: #60a5fa;
+    border-left-color: transparent;
+  }
+  :deep(.screen-thumb) { width: 72px; height: 48px; }
+  :deep(.screen-item-info) { align-items: center; }
+
+  /* 뷰어: 16:9 박스 */
+  :deep(.screen-viewer) { min-height: 220px; }
+
+  /* 설명 패널: 전폭 */
+  :deep(.desc-panel) {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #1e2d4a;
+    padding: 1.25rem 1rem;
+  }
+
+  .meta-bar { flex-wrap: wrap; }
+  .meta-bar-right { display: none; }
+}
+
 @media (max-width: 720px) {
   .hero-img-wrap { height: 240px; }
   .project-title { font-size: 1.6rem; }

@@ -22,4 +22,5 @@ public class ProjectRequest {
     private String result;
     private boolean vibeCoding;
     private boolean hidden;
+    private List<ProjectScreenRequest> screens;
 }

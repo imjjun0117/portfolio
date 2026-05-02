@@ -55,8 +55,58 @@ const emptyProjectForm = () => ({
   title: '', description: '', longDescription: '',
   startDate: '', endDate: '', ongoing: false,
   github: '', thumbnail: '', skills: '', roles: '', images: [],
-  problem: '', solution: '', result: '', vibeCoding: false
+  problem: '', solution: '', result: '', vibeCoding: false,
+  screens: []
 })
+
+// ── 스크린 관리 ──────────────────────────────────
+const screenImageInputs = ref([])
+const screenImageUploading = ref([])
+
+const emptyScreen = () => ({
+  name: '', description: '', image: '',
+  features: '', roles: '', techs: '', highlights: ''
+})
+
+const addScreen = () => {
+  projectForm.value.screens.push(emptyScreen())
+  screenImageUploading.value.push(false)
+}
+
+const removeScreen = (i) => {
+  projectForm.value.screens.splice(i, 1)
+  screenImageUploading.value.splice(i, 1)
+}
+
+const moveScreenUp = (i) => {
+  if (i === 0) return
+  const arr = projectForm.value.screens
+  ;[arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]
+}
+
+const moveScreenDown = (i) => {
+  const arr = projectForm.value.screens
+  if (i === arr.length - 1) return
+  ;[arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]
+}
+
+const onScreenImageFile = async (e, i) => {
+  const file = e.target.files[0]; if (!file) return
+  screenImageUploading.value[i] = true
+  try {
+    projectForm.value.screens[i].image = await uploadFile(file)
+    showToast('스크린 이미지가 업로드되었습니다.')
+  } catch { showToast('이미지 업로드에 실패했습니다.', 'error') }
+  finally { screenImageUploading.value[i] = false; e.target.value = '' }
+}
+
+const screensToPayload = (screens) => screens.map((s, i) => ({
+  name: s.name, description: s.description, image: s.image, displayOrder: i,
+  features: s.features ? s.features.split('\n').map(x => x.trim()).filter(Boolean) : [],
+  roles: s.roles ? s.roles.split('\n').map(x => x.trim()).filter(Boolean) : [],
+  techs: s.techs ? s.techs.split(',').map(x => x.trim()).filter(Boolean) : [],
+  highlights: s.highlights ? s.highlights.split('\n').map(x => x.trim()).filter(Boolean) : []
+}))
 const projectForm = ref(emptyProjectForm())
 const projectModalTitle = computed(() => editingProjectId.value ? '프로젝트 수정' : '프로젝트 추가')
 
@@ -88,8 +138,16 @@ const openEditProject = (p) => {
     skills: (p.skills || []).join(', '), roles: (p.roles || []).join('\n'),
     images: [...(p.images || [])],
     problem: p.problemSolving?.problem || '', solution: p.problemSolving?.solution || '',
-    result: p.problemSolving?.result || '', vibeCoding: p.vibeCoding || false
+    result: p.problemSolving?.result || '', vibeCoding: p.vibeCoding || false,
+    screens: (p.screens || []).map(s => ({
+      name: s.name || '', description: s.description || '', image: s.image || '',
+      features: (s.features || []).join('\n'),
+      roles: (s.roles || []).join('\n'),
+      techs: (s.techs || []).join(', '),
+      highlights: (s.highlights || []).join('\n')
+    }))
   }
+  screenImageUploading.value = (p.screens || []).map(() => false)
   newImageUrl.value = ''
   showProjectModal.value = true
 }
@@ -141,7 +199,8 @@ const saveProject = async () => {
       roles: projectForm.value.roles.split('\n').map(s => s.trim()).filter(Boolean),
       images: projectForm.value.images,
       problem: projectForm.value.problem, solution: projectForm.value.solution, result: projectForm.value.result,
-      vibeCoding: projectForm.value.vibeCoding
+      vibeCoding: projectForm.value.vibeCoding,
+      screens: screensToPayload(projectForm.value.screens)
     }
     if (editingProjectId.value) {
       await axios.put(`/api/projects/${editingProjectId.value}`, payload, authHeaders())
@@ -769,6 +828,69 @@ onMounted(fetchProjects)
               <label>결과</label>
               <textarea v-model="projectForm.result" rows="2" placeholder="어떤 성과가 있었나요?"></textarea>
             </div>
+
+            <!-- 화면 뷰어 섹션 -->
+            <div class="form-section-title" style="margin-top:1.5rem">화면 뷰어 <span class="hint">( 등록 시 PPT형 3패널 레이아웃으로 표시)</span></div>
+            <div v-for="(screen, si) in projectForm.screens" :key="si" class="screen-editor-card">
+              <div class="screen-editor-header">
+                <span class="screen-editor-num">화면 {{ si + 1 }}</span>
+                <div class="screen-editor-actions">
+                  <button type="button" class="btn-icon" @click="moveScreenUp(si)" :disabled="si === 0" title="위로">↑</button>
+                  <button type="button" class="btn-icon" @click="moveScreenDown(si)" :disabled="si === projectForm.screens.length - 1" title="아래로">↓</button>
+                  <button type="button" class="btn-icon btn-icon-danger" @click="removeScreen(si)" title="삭제">✕</button>
+                </div>
+              </div>
+              <div class="screen-editor-body">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>화면 이름</label>
+                    <input v-model="screen.name" placeholder="로그인 화면" />
+                  </div>
+                  <div class="form-group">
+                    <label>이미지</label>
+                    <div style="display:flex;gap:0.5rem;align-items:center">
+                      <input :ref="el => screenImageInputs[si] = el" type="file" accept="image/*" style="display:none"
+                        @change="e => onScreenImageFile(e, si)" />
+                      <button type="button" class="btn btn-outline btn-sm"
+                        :disabled="screenImageUploading[si]"
+                        @click="screenImageInputs[si]?.click()">
+                        {{ screenImageUploading[si] ? '업로드 중...' : '파일 선택' }}
+                      </button>
+                      <input v-model="screen.image" placeholder="또는 URL 입력" class="url-input" style="flex:1" />
+                    </div>
+                    <img v-if="screen.image" :src="screen.image" class="screen-img-preview"
+                      @error="e => e.target.style.display='none'" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>설명</label>
+                  <textarea v-model="screen.description" rows="2" placeholder="이 화면에 대한 설명"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>구현 기능 <span class="hint">(줄바꿈으로 구분)</span></label>
+                    <textarea v-model="screen.features" rows="3" placeholder="로그인 기능&#10;JWT 토큰 발급"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label>담당 역할 <span class="hint">(줄바꿈으로 구분)</span></label>
+                    <textarea v-model="screen.roles" rows="3" placeholder="API 설계&#10;프론트엔드 구현"></textarea>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>사용 기술 <span class="hint">(쉼표로 구분)</span></label>
+                    <input v-model="screen.techs" placeholder="Spring Security, JWT" />
+                  </div>
+                  <div class="form-group">
+                    <label>특이사항 <span class="hint">(줄바꿈으로 구분)</span></label>
+                    <textarea v-model="screen.highlights" rows="2" placeholder="RefreshToken 자동 갱신 구현"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" style="margin-top:0.75rem;width:100%" @click="addScreen">
+              + 화면 추가
+            </button>
           </form>
         </div>
         <div class="modal-footer">
@@ -1373,6 +1495,66 @@ onMounted(fetchProjects)
 }
 .image-add-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .image-add-row .url-input { min-width: 0; flex: 1; }
+
+/* ── 화면 뷰어 에디터 ── */
+.screen-editor-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.screen-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.screen-editor-num {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+.screen-editor-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.btn-icon:hover:not(:disabled) { border-color: #6366f1; color: #6366f1; }
+.btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-icon-danger:hover:not(:disabled) { border-color: #ef4444; color: #ef4444; }
+
+.screen-editor-body { padding: 1rem; }
+
+.screen-img-preview {
+  margin-top: 0.5rem;
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #334155;
+}
 
 /* ── 빈 상태 / 로딩 ── */
 .loading-box, .empty-state { text-align: center; padding: 5rem 2rem; color: #475569; font-size: 1rem; }

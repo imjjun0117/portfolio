@@ -2,6 +2,7 @@ package com.example.portback.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -16,7 +17,7 @@ public class Project {
     private Long id;
 
     private String title;
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -51,4 +52,9 @@ public class Project {
 
     @Column(columnDefinition = "boolean not null default false")
     private boolean hidden;
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("displayOrder ASC")
+    @Builder.Default
+    private List<ProjectScreen> screens = new ArrayList<>();
 }

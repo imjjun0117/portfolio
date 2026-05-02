@@ -2,12 +2,15 @@ package com.example.portback.service;
 
 import com.example.portback.domain.ProblemSolving;
 import com.example.portback.domain.Project;
+import com.example.portback.domain.ProjectScreen;
 import com.example.portback.dto.ProjectRequest;
+import com.example.portback.dto.ProjectScreenRequest;
 import com.example.portback.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +49,8 @@ public class ProjectService {
                         .result(request.getResult())
                         .build())
                 .build();
+
+        applyScreens(project, request.getScreens());
         return projectRepository.save(project);
     }
 
@@ -73,6 +78,9 @@ public class ProjectService {
             ps.setSolution(request.getSolution());
             ps.setResult(request.getResult());
 
+            project.getScreens().clear();
+            applyScreens(project, request.getScreens());
+
             return projectRepository.save(project);
         });
     }
@@ -80,5 +88,23 @@ public class ProjectService {
     @Transactional
     public void deleteProject(Long id) {
         projectRepository.deleteById(id);
+    }
+
+    private void applyScreens(Project project, List<ProjectScreenRequest> screenRequests) {
+        if (screenRequests == null) return;
+        for (int i = 0; i < screenRequests.size(); i++) {
+            ProjectScreenRequest sr = screenRequests.get(i);
+            project.getScreens().add(ProjectScreen.builder()
+                    .project(project)
+                    .name(sr.getName())
+                    .description(sr.getDescription())
+                    .image(sr.getImage())
+                    .displayOrder(i)
+                    .features(sr.getFeatures() != null ? sr.getFeatures() : new ArrayList<>())
+                    .roles(sr.getRoles() != null ? sr.getRoles() : new ArrayList<>())
+                    .techs(sr.getTechs() != null ? sr.getTechs() : new ArrayList<>())
+                    .highlights(sr.getHighlights() != null ? sr.getHighlights() : new ArrayList<>())
+                    .build());
+        }
     }
 }
