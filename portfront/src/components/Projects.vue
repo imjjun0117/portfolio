@@ -118,7 +118,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ── 썸네일 ── */
@@ -176,6 +176,8 @@ onMounted(async () => {
   border-radius: 14px;
   padding: 1.5rem;
   transition: border-color 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
 .project-card:hover {
@@ -242,6 +244,10 @@ onMounted(async () => {
   color: var(--text-secondary);
   line-height: 1.65;
   margin-bottom: 0.85rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── 태그 ── */
@@ -250,6 +256,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 0;
+  margin-top: auto;
 }
 
 .tag {
