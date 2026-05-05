@@ -46,16 +46,12 @@ const editingProjectId = ref(null)
 const saveProjectLoading = ref(false)
 const deleteProjectConfirmId = ref(null)
 const thumbnailInput = ref(null)
-const imageInput = ref(null)
 const thumbnailUploading = ref(false)
-const imageUploading = ref(false)
-const newImageUrl = ref('')
 
 const emptyProjectForm = () => ({
-  title: '', description: '', longDescription: '',
+  title: '', description: '',
   startDate: '', endDate: '', ongoing: false,
-  github: '', thumbnail: '', skills: '', roles: '', images: [],
-  problem: '', solution: '', result: '', vibeCoding: false,
+  github: '', thumbnail: '', skills: '', vibeCoding: false,
   screens: []
 })
 
@@ -122,7 +118,6 @@ const fetchProjects = async () => {
 const openCreateProject = () => {
   editingProjectId.value = null
   projectForm.value = emptyProjectForm()
-  newImageUrl.value = ''
   showProjectModal.value = true
 }
 
@@ -130,15 +125,12 @@ const openEditProject = (p) => {
   editingProjectId.value = p.id
   const parts = (p.period || '').split(' ~ ')
   projectForm.value = {
-    title: p.title || '', description: p.description || '', longDescription: p.longDescription || '',
+    title: p.title || '', description: p.description || '',
     startDate: parseToInputMonth(parts[0] || ''),
     endDate: parseToInputMonth(parts[1] || ''),
     ongoing: (parts[1] || '') === '현재',
     github: p.github || '', thumbnail: p.thumbnail || '',
-    skills: (p.skills || []).join(', '), roles: (p.roles || []).join('\n'),
-    images: [...(p.images || [])],
-    problem: p.problemSolving?.problem || '', solution: p.problemSolving?.solution || '',
-    result: p.problemSolving?.result || '', vibeCoding: p.vibeCoding || false,
+    skills: (p.skills || []).join(', '), vibeCoding: p.vibeCoding || false,
     screens: (p.screens || []).map(s => ({
       name: s.name || '', description: s.description || '', image: s.image || '',
       features: (s.features || []).join('\n'),
@@ -148,7 +140,6 @@ const openEditProject = (p) => {
     }))
   }
   screenImageUploading.value = (p.screens || []).map(() => false)
-  newImageUrl.value = ''
   showProjectModal.value = true
 }
 
@@ -159,23 +150,6 @@ const onThumbnailFile = async (e) => {
   catch { showToast('썸네일 업로드에 실패했습니다.', 'error') }
   finally { thumbnailUploading.value = false; e.target.value = '' }
 }
-
-const onImageFile = async (e) => {
-  const files = Array.from(e.target.files); if (!files.length) return
-  imageUploading.value = true
-  try {
-    for (const file of files) projectForm.value.images.push(await uploadFile(file))
-    showToast(`이미지 ${files.length}개가 업로드되었습니다.`)
-  } catch { showToast('이미지 업로드에 실패했습니다.', 'error') }
-  finally { imageUploading.value = false; e.target.value = '' }
-}
-
-const addImageUrl = () => {
-  const url = newImageUrl.value.trim(); if (!url) return
-  projectForm.value.images.push(url); newImageUrl.value = ''
-}
-
-const removeImage = (i) => projectForm.value.images.splice(i, 1)
 
 const projectDuration = computed(() =>
   calcDurationStr(projectForm.value.startDate, projectForm.value.endDate, projectForm.value.ongoing)
@@ -192,13 +166,9 @@ const saveProject = async () => {
       ? `${formatMonth(startDate)} ~ ${ongoing ? '현재' : formatMonth(endDate)}`
       : ''
     const payload = {
-      title: projectForm.value.title, description: projectForm.value.description,
-      longDescription: projectForm.value.longDescription, period,
+      title: projectForm.value.title, description: projectForm.value.description, period,
       github: projectForm.value.github, thumbnail: projectForm.value.thumbnail,
       skills: projectForm.value.skills.split(',').map(s => s.trim()).filter(Boolean),
-      roles: projectForm.value.roles.split('\n').map(s => s.trim()).filter(Boolean),
-      images: projectForm.value.images,
-      problem: projectForm.value.problem, solution: projectForm.value.solution, result: projectForm.value.result,
       vibeCoding: projectForm.value.vibeCoding,
       screens: screensToPayload(projectForm.value.screens)
     }
@@ -220,9 +190,7 @@ const saveProject = async () => {
 const toggleProjectHidden = async (project) => {
   try {
     await axios.put(`/api/projects/${project.id}`, { ...project,
-      skills: project.skills, roles: project.roles, images: project.images,
-      problem: project.problemSolving?.problem, solution: project.problemSolving?.solution,
-      result: project.problemSolving?.result, hidden: !project.hidden
+      skills: project.skills, hidden: !project.hidden
     }, authHeaders())
     await fetchProjects()
     showToast(project.hidden ? '공개로 변경되었습니다.' : '숨김 처리되었습니다.')
@@ -755,10 +723,6 @@ onMounted(fetchProjects)
               <label>한 줄 설명 *</label>
               <input v-model="projectForm.description" placeholder="카드에 표시되는 짧은 설명" required />
             </div>
-            <div class="form-group">
-              <label>상세 설명</label>
-              <textarea v-model="projectForm.longDescription" rows="4" placeholder="모달에서 표시되는 상세 설명"></textarea>
-            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>GitHub URL</label>
@@ -768,10 +732,6 @@ onMounted(fetchProjects)
                 <label>기술 스택 <span class="hint">(쉼표로 구분)</span></label>
                 <input v-model="projectForm.skills" placeholder="Java, Spring Boot, Vue.js" />
               </div>
-            </div>
-            <div class="form-group">
-              <label>담당 역할 <span class="hint">(한 줄에 하나씩)</span></label>
-              <textarea v-model="projectForm.roles" rows="3" placeholder="백엔드 API 설계 및 구현&#10;데이터베이스 최적화"></textarea>
             </div>
 
             <div class="form-section-title" style="margin-top:1.5rem">썸네일 이미지</div>
@@ -791,42 +751,6 @@ onMounted(fetchProjects)
                   <input v-model="projectForm.thumbnail" placeholder="이미지 URL 직접 입력" class="url-input" />
                 </div>
               </div>
-            </div>
-
-            <div class="form-section-title" style="margin-top:1.5rem">상세 이미지 목록</div>
-            <div class="form-group">
-              <div v-if="projectForm.images.length" class="image-list">
-                <div v-for="(img, i) in projectForm.images" :key="i" class="image-list-item">
-                  <img :src="img" @error="e => e.target.style.display='none'" class="image-list-thumb" />
-                  <span class="image-list-url">{{ img }}</span>
-                  <button type="button" class="btn-remove" @click="removeImage(i)">✕</button>
-                </div>
-              </div>
-              <p v-else class="no-images">추가된 이미지가 없습니다.</p>
-              <div class="image-add-row">
-                <input ref="imageInput" type="file" accept="image/*" multiple style="display:none" @change="onImageFile" />
-                <button type="button" class="btn btn-outline btn-sm" :disabled="imageUploading" @click="imageInput.click()">
-                  {{ imageUploading ? '업로드 중...' : '+ 파일 업로드' }}
-                </button>
-                <span class="divider-text">또는</span>
-                <input v-model="newImageUrl" placeholder="이미지 URL 입력 후 Enter" class="url-input"
-                  @keydown.enter.prevent="addImageUrl" />
-                <button type="button" class="btn btn-outline btn-sm" @click="addImageUrl">추가</button>
-              </div>
-            </div>
-
-            <div class="form-section-title" style="margin-top:1.5rem">문제 해결 과정</div>
-            <div class="form-group">
-              <label>문제 상황</label>
-              <textarea v-model="projectForm.problem" rows="2" placeholder="어떤 기술적 문제가 있었나요?"></textarea>
-            </div>
-            <div class="form-group">
-              <label>해결 방법</label>
-              <textarea v-model="projectForm.solution" rows="2" placeholder="어떻게 해결했나요?"></textarea>
-            </div>
-            <div class="form-group">
-              <label>결과</label>
-              <textarea v-model="projectForm.result" rows="2" placeholder="어떤 성과가 있었나요?"></textarea>
             </div>
 
             <!-- 화면 뷰어 섹션 -->
