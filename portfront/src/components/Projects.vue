@@ -178,6 +178,7 @@ onMounted(async () => {
   transition: border-color 0.2s, transform 0.2s;
   display: flex;
   flex-direction: column;
+  min-height: 440px;
 }
 
 .project-card:hover {
@@ -298,7 +299,7 @@ onMounted(async () => {
 }
 
 .role-block {
-  margin-top: 0.75rem;
+  margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color);
 }
