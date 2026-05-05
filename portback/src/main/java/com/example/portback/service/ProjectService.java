@@ -22,7 +22,7 @@ public class ProjectService {
 
     public List<Project> getAllProjects(boolean all) {
         if (all) return projectRepository.findAll();
-        return projectRepository.findAllByHiddenFalse();
+        return projectRepository.findAllByHiddenFalseOrderByIdDesc();
     }
 
     public Optional<Project> getProjectById(Long id) {
