@@ -35,6 +35,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
       JWT_SECRET: ${JWT_SECRET:-portfolio-admin-secret-key-2024-must-be-long-enough}
+      UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
     volumes:
