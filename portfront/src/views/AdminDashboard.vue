@@ -462,6 +462,28 @@ const saveSiteConfig = async () => {
   } finally { saveConfigLoading.value = false }
 }
 
+// ════════════════════════════════════════════════
+// 방문 기록 탭
+// ════════════════════════════════════════════════
+const visitStats = ref(null)
+const visitLoading = ref(false)
+
+const fetchVisitStats = async () => {
+  visitLoading.value = true
+  try {
+    const res = await axios.get('/api/admin/visits', authHeaders())
+    visitStats.value = res.data
+  } catch (e) {
+    if (e.response?.status === 401) handleUnauthorized()
+    else showToast('방문 기록을 불러오지 못했습니다.', 'error')
+  } finally { visitLoading.value = false }
+}
+
+const formatVisitDate = (dateStr) => {
+  const d = new Date(dateStr)
+  return d.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 // ── 탭 전환 시 데이터 로드 ────────────────────────
 const switchTab = (tab) => {
   activeTab.value = tab
@@ -469,6 +491,7 @@ const switchTab = (tab) => {
   if (tab === 'experiences' && experiences.value.length === 0) fetchExperiences()
   if (tab === 'skills' && skillGroups.value.length === 0) fetchSkillGroups()
   if (tab === 'config' && Object.keys(siteConfig.value).length === 0) fetchSiteConfig()
+  if (tab === 'visits') fetchVisitStats()
 }
 
 onMounted(fetchProjects)
@@ -499,6 +522,7 @@ onMounted(fetchProjects)
             { key: 'experiences', label: '경력' },
             { key: 'skills', label: '기술 스택' },
             { key: 'config', label: '사이트 설정' },
+            { key: 'visits', label: '방문 기록' },
           ]"
           :key="tab.key"
           :class="['tab-btn', { active: activeTab === tab.key }]"
@@ -673,6 +697,66 @@ onMounted(fetchProjects)
                 <label>{{ CONFIG_LABELS['contact.github'] }}</label>
                 <input v-model="configForm['contact.github']" placeholder="GitHub URL" />
               </div>
+            </div>
+          </div>
+        </div>
+      <!-- ════ 방문 기록 탭 ════ -->
+      <div v-if="activeTab === 'visits'">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title">방문 기록</h2>
+            <p class="section-sub">실시간 방문자 통계</p>
+          </div>
+          <button @click="fetchVisitStats" class="btn btn-outline" :disabled="visitLoading">
+            {{ visitLoading ? '불러오는 중...' : '새로고침' }}
+          </button>
+        </div>
+
+        <div v-if="visitLoading" class="loading-box">데이터를 불러오는 중입니다...</div>
+        <div v-else-if="visitStats">
+          <!-- 통계 카드 -->
+          <div class="visit-stat-grid">
+            <div class="visit-stat-card">
+              <div class="visit-stat-label">오늘 방문</div>
+              <div class="visit-stat-value">{{ visitStats.todayTotal }}</div>
+            </div>
+            <div class="visit-stat-card">
+              <div class="visit-stat-label">오늘 순방문자</div>
+              <div class="visit-stat-value">{{ visitStats.todayUnique }}</div>
+            </div>
+            <div class="visit-stat-card">
+              <div class="visit-stat-label">7일 방문</div>
+              <div class="visit-stat-value">{{ visitStats.weekTotal }}</div>
+            </div>
+            <div class="visit-stat-card">
+              <div class="visit-stat-label">30일 방문</div>
+              <div class="visit-stat-value">{{ visitStats.monthTotal }}</div>
+            </div>
+          </div>
+
+          <!-- 페이지별 통계 -->
+          <div class="visit-section-title">페이지별 방문수</div>
+          <div class="visit-path-list">
+            <div v-for="p in visitStats.pathStats" :key="p.path" class="visit-path-row">
+              <span class="visit-path">{{ p.path }}</span>
+              <span class="visit-count">{{ p.count }}</span>
+            </div>
+          </div>
+
+          <!-- 최근 방문 로그 -->
+          <div class="visit-section-title" style="margin-top:1.5rem">최근 방문 (100건)</div>
+          <div class="visit-log-table">
+            <div class="visit-log-header">
+              <span>시각</span>
+              <span>IP</span>
+              <span>경로</span>
+              <span>User-Agent</span>
+            </div>
+            <div v-for="log in visitStats.recentLogs" :key="log.id" class="visit-log-row">
+              <span class="log-time">{{ formatVisitDate(log.visitedAt) }}</span>
+              <span class="log-ip">{{ log.ip }}</span>
+              <span class="log-path">{{ log.path }}</span>
+              <span class="log-ua">{{ log.userAgent }}</span>
             </div>
           </div>
         </div>
@@ -1505,6 +1589,99 @@ onMounted(fetchProjects)
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── 방문 기록 ── */
+.visit-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.visit-stat-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.visit-stat-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.visit-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #60a5fa;
+}
+
+.visit-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.visit-path-list {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.visit-path-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.83rem;
+}
+
+.visit-path-row:last-child { border-bottom: none; }
+.visit-path { color: #cbd5e1; }
+.visit-count { font-weight: 700; color: #60a5fa; }
+
+.visit-log-table {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.78rem;
+}
+
+.visit-log-header {
+  display: grid;
+  grid-template-columns: 110px 120px 160px 1fr;
+  padding: 0.6rem 1rem;
+  background: #1e293b;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.visit-log-row {
+  display: grid;
+  grid-template-columns: 110px 120px 160px 1fr;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #1e293b;
+  align-items: center;
+}
+
+.visit-log-row:last-child { border-bottom: none; }
+.visit-log-row:hover { background: #1e293b44; }
+
+.log-time { color: #64748b; }
+.log-ip { color: #f1f5f9; font-family: monospace; }
+.log-path { color: #60a5fa; }
+.log-ua { color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ── 반응형 ── */
 @media (max-width: 640px) {
   .form-row, .config-grid { grid-template-columns: 1fr; }
@@ -1513,5 +1690,8 @@ onMounted(fetchProjects)
   .image-upload-area { flex-direction: column; }
   .image-add-row { flex-direction: column; align-items: stretch; }
   .tab-btn { padding: 0.75rem 0.9rem; font-size: 0.82rem; }
+  .visit-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .visit-log-header, .visit-log-row { grid-template-columns: 90px 100px 1fr; }
+  .visit-log-row > :last-child { display: none; }
 }
 </style>
